@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="sv">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DSP1124P Panel</title>
+<style>
+  :root{color-scheme:light dark;--line:#8884}
+  body{font:14px system-ui;max-width:900px;margin:1rem auto;padding:0 1rem}
+  fieldset{margin:.6rem 0;border:1px solid var(--line);border-radius:6px}
+  input,select,button{font:inherit}
+  table{border-collapse:collapse;width:100%}
+  td,th{padding:.25rem .4rem;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  td input[type=range]{width:9rem;vertical-align:middle}
+  td input[type=number]{width:4rem}
+  .warn{color:#b60}
+  #log{height:140px;overflow:auto;font:12px ui-monospace,monospace;white-space:pre-wrap;border:1px solid var(--line);padding:.4rem}
+  @media(max-width:640px){td,th{padding:.2rem}}
+</style>
+<h1>DSP1124P</h1>
+<p class=warn>Skrivande panel: enheten kan inte läsas av ännu, så värdena visar det vi senast skickat
+(och det enheten sänder när du vrider på den, om MIDI IN är inkopplad). Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
+
+<fieldset><legend>Anslutning</legend>
+  Ut: <select id=out></select> In (valfri): <select id=inp><option value="">–</option></select>
+  Kanal <input id=ch type=number min=1 max=16 value=1 style="width:3.5rem">
+  Fördröjning <input id=delay type=number min=20 max=1000 value=300 style="width:4.5rem"> ms
+  <button id=conn>Anslut</button> <span id=status></span>
+</fieldset>
+
+<fieldset><legend>Motor</legend>
+  <label><input type=radio name=eng value=1 checked> Vänster</label>
+  <label><input type=radio name=eng value=2> Höger</label>
+  <label><input type=radio name=eng value=0> Couple (båda)</label>
+  <small>Couple skickar till båda och kopierar lokalt.</small>
+</fieldset>
+
+<canvas id=curve width=860 height=220 style="width:100%;border:1px solid var(--line);border-radius:6px"></canvas>
+<small>Kurvan är beräknad (standard peak-EQ, Q ur bandbredd), inte mätt på enheten. Visar filter i läge PA.</small>
+<table id=tbl>
+  <tr><th>#<th>Läge<th>Frekvens<th>Fine<th>Bandbredd (1/60 okt)<th>Gain (dB)<th></tr>
+</table>
+
+<fieldset><legend>Program och global</legend>
+  Program <select id=prog></select>
+  <button id=recall>Hämta (PC)</button>
+  <button id=store title="Kräver S=1 på enheten">Spara hit (CC 18)</button>
+  | In/Out <select id=io>
+    <option value=2>Aktiv</option><option value=1>Parametrisk bypass (antaget)</option>
+    <option value=0>Total bypass (antaget)</option></select><button id=sendio>Skicka</button>
+  | Feedback-känslighet <select id=fb></select><button id=sendfb>Skicka</button>
+</fieldset>
+
+<button id=clr>Rensa logg</button>
+<div id=log></div>
+
+<script src="map.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let midi, out, input;
+const ptr = { e: null, f: null };                       // enhetens "pekare" (senast valt via CC 12/10)
+// state[motor][filter] — motor 1=L, 2=R. Standardprogram: PA, 500 Hz, bw 60, 0 dB.
+const def = () => ({ mode: 1, freq: 14, fine: 0, bw: 60, gain: 0 });
+const state = { 1: Array.from({ length: 12 }, def), 2: Array.from({ length: 12 }, def) };
+const shown = () => +document.querySelector('input[name=eng]:checked').value || 1;
+
+function log(s) { const l = $('log'); l.textContent += s + '\n'; l.scrollTop = l.scrollHeight; }
+
+// --- sändkö: ett CC i taget med fördröjning (enheten tappar snabba meddelanden)
+const q = []; let busy = false;
+async function pump() {
+  if (busy) return; busy = true;
+  while (q.length) {
+    const [cc, v] = q.shift();
+    out.send([0xB0 | (+$('ch').value - 1), cc, v]);
+    log(`UT cc ${cc} = ${v}`);
+    await sleep(+$('delay').value);
+  }
+  busy = false;
+}
+const cc = (n, v) => { if (!out) return log('Inte ansluten'); q.push([n, v]); pump(); };
+const pc = p => { if (!out) return log('Inte ansluten'); out.send([0xC0 | (+$('ch').value - 1), p]); log(`UT pc ${p}`); ptr.e = ptr.f = null; };
+
+// välj motor+filter, sedan parametern (pekararkitekturen, docs/midi.md)
+function setParam(f, param, userVal, skipSelect) {
+  const e = +document.querySelector('input[name=eng]:checked').value;
+  if (!skipSelect) { cc(DSP.CC.engine, e); cc(DSP.CC.filter, f); }
+  cc(DSP.CC[param], param === 'mode' ? userVal : DSP.enc[param](userVal));
+  for (const m of e ? [e] : [1, 2]) state[m][f][param] = userVal;
+  drawCurve();
+}
+
+// --- rendera tabellen
+const tbl = $('tbl');
+for (let f = 0; f < 12; f++) {
+  const r = tbl.insertRow(); r.dataset.f = f;
+  r.innerHTML = `<td>${f + 1}
+    <td><select data-p=mode>${DSP.MODES.map((m, i) => `<option value=${i}>${m}</option>`).join('')}</select>
+    <td><select data-p=freq>${DSP.ISO.map((h, i) => `<option value=${i}>${DSP.fmtHz(h)}</option>`).join('')}</select>
+    <td><input data-p=fine type=number min=-9 max=10>
+    <td><input data-p=bw type=number min=1 max=120>
+    <td><input data-p=gain type=range min=-48 max=16><output></output>
+    <td><button data-send>Skicka filter</button>`;
+}
+function drawCurve() {
+  const cv = $('curve'), g = cv.getContext('2d'), W = cv.width, H = cv.height, lo = -30, hi = 20;
+  const x = f => W * Math.log(f / 20) / Math.log(1000), y = db => H * (hi - db) / (hi - lo);
+  const fg = getComputedStyle(document.body).color;
+  g.clearRect(0, 0, W, H); g.strokeStyle = fg; g.fillStyle = fg; g.font = '11px system-ui';
+  g.globalAlpha = .25;
+  for (const db of [-24, -12, 0, 12]) { g.beginPath(); g.moveTo(0, y(db)); g.lineTo(W, y(db)); g.stroke(); g.fillText(db + ' dB', 3, y(db) - 2); }
+  for (const f of [100, 1000, 10000]) { g.beginPath(); g.moveTo(x(f), 0); g.lineTo(x(f), H); g.stroke(); g.fillText(DSP.fmtHz(f), x(f) + 3, H - 3); }
+  g.globalAlpha = 1; g.lineWidth = 2; g.strokeStyle = '#2a7'; g.beginPath();
+  const act = state[shown()].filter(s => s.mode === 1 && s.gain !== 0);
+  for (let i = 0; i <= W; i += 2) {
+    const f = 20 * Math.pow(1000, i / W), db = act.reduce((s, fl) => s + DSP.peakDb(fl, f), 0);
+    g[i ? 'lineTo' : 'moveTo'](i, y(Math.max(lo, Math.min(hi, db))));
+  }
+  g.stroke();
+}
+function render() {
+  drawCurve();
+  const s = state[shown()];
+  for (const r of tbl.rows) {
+    if (!r.dataset.f) continue;
+    const st = s[+r.dataset.f];
+    for (const el of r.querySelectorAll('[data-p]')) el.value = st[el.dataset.p];
+    r.querySelector('output').textContent = (st.gain > 0 ? '+' : '') + st.gain;
+  }
+}
+tbl.addEventListener('input', e => {                    // slider: visa värdet medan man drar
+  if (e.target.type === 'range') e.target.nextElementSibling.textContent = (e.target.value > 0 ? '+' : '') + e.target.value;
+});
+tbl.addEventListener('change', e => {                   // skicka först när värdet släpps/bekräftas
+  const el = e.target, p = el.dataset.p; if (!p) return;
+  setParam(+el.closest('tr').dataset.f, p, +el.value);
+});
+tbl.addEventListener('click', e => {
+  if (!e.target.dataset.send) return;
+  const f = +e.target.closest('tr').dataset.f, st = state[shown()][f];
+  ['mode', 'freq', 'fine', 'bw', 'gain'].forEach((p, i) => setParam(f, p, st[p], i > 0));
+});
+document.querySelectorAll('input[name=eng]').forEach(r => r.onchange = render);
+
+// --- program, in/out, feedback
+for (let i = 1; i <= 10; i++) $('prog').add(new Option(i, i - 1));
+for (let s = -3; s >= -9; s--) $('fb').add(new Option(s + ' dB', s));
+$('recall').onclick = () => pc(+$('prog').value);
+$('store').onclick = () => {
+  if (confirm(`Skriv över program ${+$('prog').value + 1} med enhetens nuvarande inställningar?`)) cc(DSP.CC.store, +$('prog').value);
+};
+$('sendio').onclick = () => cc(DSP.CC.inout, +$('io').value);
+$('sendfb').onclick = () => cc(DSP.CC.fb, DSP.enc.fb(+$('fb').value));
+$('clr').onclick = () => $('log').textContent = '';
+
+// --- MIDI in: enhetens egna vridningar uppdaterar pekare och värden
+function onMsg(ev) {
+  const [st, a, b] = ev.data;
+  if ((st & 0xF0) === 0xC0) { ptr.e = ptr.f = null; return log(`IN pc ${a}`); }
+  if ((st & 0xF0) !== 0xB0) return;
+  log(`IN cc ${a} = ${b}`);
+  if (a === DSP.CC.engine) ptr.e = b;
+  else if (a === DSP.CC.filter) ptr.f = b;
+  else {
+    const p = Object.keys(DSP.CC).find(k => DSP.CC[k] === a);
+    if (!['mode', 'freq', 'fine', 'bw', 'gain'].includes(p) || ptr.f == null || ptr.e == null) return;
+    const v = p === 'mode' ? b : DSP.dec[p](b);
+    for (const m of ptr.e ? [ptr.e] : [1, 2]) state[m][ptr.f][p] = v;
+    render();
+  }
+}
+
+async function init() {
+  render();
+  try { midi = await navigator.requestMIDIAccess({ sysex: false }); }
+  catch (e) { $('status').textContent = 'Web MIDI nekad/ej stött: ' + e.message; return; }
+  const fill = () => {
+    $('out').innerHTML = ''; [...midi.outputs.values()].forEach(p => $('out').add(new Option(p.name, p.id)));
+    $('inp').length = 1; [...midi.inputs.values()].forEach(p => $('inp').add(new Option(p.name, p.id)));
+  };
+  midi.onstatechange = fill; fill();
+}
+$('conn').onclick = () => {
+  out = midi.outputs.get($('out').value);
+  if (input) input.onmidimessage = null;
+  input = midi.inputs.get($('inp').value);
+  if (input) input.onmidimessage = onMsg;
+  $('status').textContent = out ? `Ansluten: ${out.name}${input ? ' + in' : ''}` : 'Ingen utport';
+};
+init();
+</script>

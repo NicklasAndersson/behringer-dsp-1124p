@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="sv">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DSP1124P MIDI-sond</title>
+<style>
+  body{font:14px system-ui;max-width:760px;margin:1rem auto;padding:0 1rem}
+  fieldset{margin:.6rem 0}
+  input,select,button{font:inherit;margin:.15rem}
+  input[type=number]{width:5rem}
+  #raw{width:70%}
+  #log{background:#111;color:#cfc;padding:.5rem;height:320px;overflow:auto;font:12px ui-monospace,monospace;white-space:pre-wrap}
+</style>
+<h1>DSP1124P MIDI-sond</h1>
+<p>Chrome/Edge. Skickar CC/SysEx och loggar allt som kommer in. Ändra något på enheten och se vad den sänder.</p>
+
+<fieldset><legend>Portar</legend>
+  In: <select id=inp></select> Ut: <select id=out></select>
+  Kanal: <input id=ch type=number min=1 max=16 value=1>
+  <button id=conn>Anslut</button>
+</fieldset>
+
+<fieldset><legend>Control Change</legend>
+  CC <input id=cc type=number min=0 max=127 value=16>
+  Värde <input id=val type=number min=0 max=127 value=64>
+  <button id=sendcc>Skicka CC</button>
+  <button id=sweep>Svep värde 0–127 (50 ms)</button>
+</fieldset>
+
+<fieldset><legend>Testsekvens (ändrar bara arbetsminnet, sparar inte)</legend>
+  <button id=seq>Filter 1 → PA, 50 Hz, bw 12/60, −12 dB</button>
+  <span>Motor: <input id=eng type=number min=0 max=2 value=0 style="width:3rem"> (0/1/2 – oklart vilken som är Left/Right/Couple)</span>
+</fieldset>
+
+<fieldset><legend>Program Change (0–9 = program 1–10)</legend>
+  Program <input id=pc type=number min=0 max=9 value=0>
+  <button id=sendpc>Skicka PC</button>
+</fieldset>
+
+<fieldset><legend>Rå hex (t.ex. <code>F0 00 20 32 7F F7</code> eller <code>C0 01</code>)</legend>
+  <input id=raw placeholder="hex-byte, mellanslag emellan">
+  <button id=sendraw>Skicka</button>
+</fieldset>
+
+<button id=clr>Rensa logg</button> <button id=dl>Spara logg</button>
+<div id=log></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let midi, input, output;
+const t0 = performance.now();
+const hex = d => [...d].map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+function log(s) {
+  const l = $('log');
+  l.textContent += `${((performance.now() - t0) / 1000).toFixed(2).padStart(8)}  ${s}\n`;
+  l.scrollTop = l.scrollHeight;
+}
+function describe(d) {
+  const st = d[0] & 0xF0, ch = (d[0] & 15) + 1;
+  if (d[0] === 0xF0) return `SysEx (${d.length} B)`;
+  if (st === 0xB0) return `CC  kanal ${ch}  cc ${d[1]}  värde ${d[2]}`;
+  if (st === 0xC0) return `PC  kanal ${ch}  program ${d[1]}`;
+  return '';
+}
+
+async function init() {
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { log('Web MIDI nekad/ej stött: ' + e.message); return; }
+  const fill = (sel, ports) => {
+    sel.innerHTML = '';
+    for (const p of ports.values()) sel.add(new Option(p.name, p.id));
+  };
+  const refresh = () => { fill($('inp'), midi.inputs); fill($('out'), midi.outputs); };
+  midi.onstatechange = refresh;
+  refresh();
+  log(`Hittade ${midi.inputs.size} in / ${midi.outputs.size} ut`);
+}
+
+$('conn').onclick = () => {
+  if (input) input.onmidimessage = null;
+  input = midi.inputs.get($('inp').value);
+  output = midi.outputs.get($('out').value);
+  if (input) input.onmidimessage = e => log(`IN   ${hex(e.data)}  ${describe(e.data)}`);
+  log(`Ansluten: in=${input?.name} ut=${output?.name}`);
+};
+function send(bytes) {
+  if (!output) return log('Ingen utport vald (tryck Anslut)');
+  output.send(bytes);
+  log(`UT   ${hex(bytes)}  ${describe(bytes)}`);
+}
+const cc = (n, v) => send([0xB0 | ($('ch').value - 1), n, v]);
+$('sendcc').onclick = () => cc(+$('cc').value, +$('val').value);
+// ponytail: fast 40 ms mellan meddelanden (manualen/rapporten: 20–50 ms), ingen kö
+$('seq').onclick = async () => {
+  for (const [n, v] of [[12, +$('eng').value], [10, 0], [11, 1], [13, 4], [14, 9], [15, 11], [16, 36]]) {
+    cc(n, v);
+    await new Promise(r => setTimeout(r, 40));
+  }
+};
+$('sendpc').onclick = () => send([0xC0 | ($('ch').value - 1), +$('pc').value]);
+$('sweep').onclick = async () => {
+  for (let v = 0; v < 128; v++) { cc(+$('cc').value, v); await new Promise(r => setTimeout(r, 50)); }
+};
+$('sendraw').onclick = () => {
+  const b = $('raw').value.trim().split(/\s+/).map(x => parseInt(x, 16));
+  if (!b.length || b.some(x => !(x >= 0 && x <= 255))) return log('Ogiltig hex');
+  send(b);
+};
+$('clr').onclick = () => $('log').textContent = '';
+$('dl').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([$('log').textContent]));
+  a.download = 'dsp1124p-log.txt';
+  a.click();
+};
+init();
+</script>
