@@ -127,12 +127,23 @@ Ingen öppen kod hittad (GitHub-sökning gav inget). Vad som finns:
 - Längd: **1184 byte** totalt (F0 … F7). Alla databyte < 128.
 - Huvud: `F0 00 20 32 00 08 0F` = Behringer-ID `00 20 32`, device `00`, model `08`
   (antaget), kommando `0F` (antaget: dump). Därefter 1176 byte payload, sedan `F7`.
-- ~~Sista byten = XOR-checksum~~ **Motbevisat 2026-11-08:** efter att ett sparat program
-  ändrats (8 byte skiljer, se nedan) är sista byten oförändrad, trots att XOR av
-  ändringarna inte är noll. Att den matchade första gången var en slump (1/128).
-  Checksumman, om det finns någon, är okänd.
-- Payloaden har tydlig periodicitet på **32 byte** (62 % lika byte på avstånd 32).
-  Standardfilter upprepas identiskt, så strukturen är bitpackad per filter.
+- **7/8-kodning (2026-11-08):** payloaden är Behringers 7/8-kodning: varje grupp om 8 byte
+  = 7 databyte (låga 7 bitar) + en åttonde byte med deras högsta bitar (bit 6 → första
+  byten, bit 0 → sjunde). 1176 byte = 147 grupper → **1029 dekodade byte**. Algoritmen är
+  hämtad från [behringerctl](https://github.com/Malvineous/behringerctl)
+  (`algo/sevenEightCoder.js`, skriven för DEQ2496/FBQ1000, samma kodning passar här).
+- ~~Sista byten = XOR-checksum~~ **Motbevisat:** sista payloadbyten (`4b`) är högbitsbyten
+  i sista gruppen, inte en checksumma. Den är därför oförändrad när ett program ändras.
+- **Ingen checksumma hittad.** `q01` och `m00` skiljer sig i exakt *en* dekodad byte
+  (index 1010, `20`→`00`); en checksumma över den skulle ha ändrat en till. Testat som
+  "prefix → nästa byte": behringerctl:s `checksumTZ` (firmwareblock), XOR, sum8, sum7 och
+  negerad summa. Träffantalet (22) är på slumpnivå (~20 väntat). Dumpen verkar sakna
+  skydd, men det är inte bekräftat mot ett meddelande som skickas *till* enheten.
+  XOR-nyckeln `TZ'04` från behringerctl gäller firmwareskrivning och är inte testad vidare.
+- Dekodad data har period **28 byte** (58 % lika byte på avstånd 28; 3–4 % på 16 och 32).
+  De 32 som stod här tidigare var perioden i den kodade 7-bitsströmmen (32 = 28 × 8/7).
+  Filterposter syns ca `0x350`–`0x3b0` (dekodade offset), nollfyllnad `0x3c0`–`0x3ef`,
+  svans från `0x3f0` (där index 1010 = `0x3f2` ligger).
 - Ännu **inte avkodat** vilka bitar som är frekvens/fine/bandbredd/gain/läge.
 
 Nästa steg för att avkoda (differensmetoden): ändra *en* parameter åt gången på ett
@@ -141,12 +152,15 @@ visar sparade program, inte osparat arbetsminne – tryck STORE efter ändringen
 
 **Dumpen återspeglar sparade program, inte arbetsminnet.** Kräver Store Enable (`S`=1) för att
 CC 18 ska spara. Med `S`=0 gav CC-ändringar + `CC 18=9` identiska dumpar (m00, m01).
-Med `S`=1: program 10, filter 1 vänster, gain 36 → 40 (`CC 16`) + `CC 18=9` gav (`q01`)
-8 ändrade byte mot `m00-base`: @994 0b→01, @998 60→50, @1012 02→00, @1031 50→10,
+Med `S`=1: program 10, filter 1 vänster, gain 36 → 40 (`CC 16`) + `CC 18=9` gav (`q01`).
+**Rättat 2026-11-08:** de 8 ändrade råbytena nedan (filoffset) skiljer `dump-143801` från
+`q01`/`m00`, *inte* `q01` från `m00-base` (de två skiljer i en enda byte, se ovan).
+`dump-143801` är alltså ett äldre sparat tillstånd med andra filter; åtta-byte-skillnaden
+säger inget om vad en gain-ändring gör. Offsets (filoffset, 7-bitsström):
+@994 0b→01, @998 60→50, @1012 02→00, @1031 50→10,
 @1049 16→06, @1067 05→01, @1085 41→40, @1159 01→05. Byte 1031/1049/1067/1085 ligger 18
-byte isär. Att en gain-ändring ger flera ändrade byte tyder på att dumpen även
-innehåller beräknade filterkoefficienter, inte bara parametervärden. Obekräftat –
-användaren kan också ha vridit på enheten under fångsten (enheten sände 4 CC).
+byte isär. ~~Slutsatsen att gain-ändringen ger flera ändrade byte (koefficienter)~~ är
+**inte belagd**: skillnaden gäller `dump-143801`, inte en kontrollerad gain-ändring.
 
 **Läget efter mätserier (2026-11-08, inte löst):** sex dumpar (`dumps/`). Ändrar vi gain 36→37→64
 eller frekvens index 4→5 på program 10 (filter 1, vänster) och skickar `CC 18=9` (med `S`=1 på enheten)
@@ -155,6 +169,37 @@ första dumpen, och `m00` skilde sig från `q01` i ett byte (@1161). Alltså: an
 inte som tänkt vid upprepade försök, eller så ligger gain/frekvens för det filtret inte i de byte vi
 jämfört. Praktiskt: `d` återställs till 0 efter varje dump och måste sättas till 2 före nästa STORE;
 `S` verkade stanna på 1. Avkodning kräver fler kontrollerade mätningar med manuell lagring.
+
+### Avkodat: gain och frekvens (2026-11-08, `dumps/a00..a13`)
+
+**Rättelse:** 7/8-uppackningen ovan är sannolikt fel väg. Fälten ligger som egna **7-bitsbyte
+i råströmmen** (payload efter `F0 00 20 32 00 08 0F`, index räknat i råbyte). Posterna är
+**32 råbyte** (det som såg ut som 28 uppackade). Att gain tidigare hamnade på "uppackat
+index 819" var en slump i gruppindelningen.
+
+Mätserie: program 9 (STORE skickar `CC 18 = 8`), filter 1, en ändring i taget, sparat med
+STORE-knappen:
+
+| Fält | Råbyte (payload) | Kodning | Verifierat |
+|------|------------------|---------|------------|
+| Gain | 936 | `dB + 48` (samma som CC 16) | −7→41, −6→42, −4→44 |
+| Frekvens + fine (+ läge) | 933:934 (14 bitar, hög byte först) | `40 × ISO-index + 2 × fine`, **+ 8192 (bit 13) i läge PA** | PA, fine −9, idx 4–7 = 8334, 8374, 8414, 8454; fine −9→−8 = 8334→8336; PA→OF: 8336→144 |
+| Bandbredd | 935 | `bw − 1` (samma som CC 15) | 21→20, 22→21, 30→29 |
+| (härlett) | 879 | `(frekvensvärde >> 1) & 127` | stämmer på 5 värden |
+
+- Enhet 1/120 oktav: 40 = 1/3 oktav (ISO-steg), 2 = 1/60 oktav (fine). Bit 13 (= bit 6 i råbyte 933) är en lägesbit (satt i PA, noll i OF). Lägesfältet kan vara två bitar; SI/AU ej mätta.
+- PA→OF (a12→a13) ändrade även gain-byten 44→48 (= 0 dB): troligen tvingas gain till 0 i OF, en mätning.
+- Dumpen är en ren funktion av inställningarna: a09 (tillbaka till 50 Hz/fine −9) = a05.
+- Poster ligger på `32 × k`; filter 1 (i det här programmet) har frekvens på +5/+6 och gain på
+  +8 från postens start (båda utgår från 928 = 29 × 32, antagande).
+- Två dumpar utan ändring emellan (`a01`, `a02`) är identiska → dumpen är stabil.
+- `a00` (före första sparning i program 9) skiljer sig från `a01` i 92 uppackade byte: det är
+  platsens gamla innehåll mot första sparningen, inte en gain-ändring.
+- Råbyte 880/881 ändras med bandbredd men inte linjärt (bw 21: 10/22, 22: 10/86, 30: 14/86);
+  pariteten som jag först gissade för bit 6 i 881 är **motbevisad** (bw−1=29 har jämn paritet,
+  bit 6 blev ändå 1). 879–881 är sannolikt beräknade värden (filterkoefficienter?) som enheten
+  räknar fram. Ej avkodade. Okänt om enheten kräver dem vid inkommande dump.
+- Öppet: bara en kopia av gain ändrades fast motorläget troligen var Couple.
 
 ## Saknas
 - SysEx-format (finns, men odokumenterat; `d`-läge 2 dumpar hela minnet)
