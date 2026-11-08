@@ -18,7 +18,9 @@
 </style>
 <h1>DSP1124P</h1>
 <p class=warn>Skrivande panel: enheten kan inte läsas av ännu, så värdena visar det vi senast skickat
-(och det enheten sänder när du vrider på den, om MIDI IN är inkopplad). Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
+(och det enheten sänder när du vrider på den, om MIDI IN är inkopplad, men bara efter att enheten själv
+sänt motor och filter, CC 12/10; vid vridning har vi bara sett den sända själva parametern).
+Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
 
 <fieldset><legend>Anslutning</legend>
   Ut: <select id=out></select> In (valfri): <select id=inp><option value="">–</option></select>
@@ -31,7 +33,9 @@
   <label><input type=radio name=eng value=1 checked> Vänster</label>
   <label><input type=radio name=eng value=2> Höger</label>
   <label><input type=radio name=eng value=0> Couple (båda)</label>
-  <small>Couple skickar till båda och kopierar lokalt.</small>
+  <small class=warn>Couple (CC 12 = 0): enligt manualen kopierar enheten <i>hela</i> den aktiva motorns
+  inställningar till den andra när man byter till Couple. Panelen kopierar bara den parameter du skickar,
+  så den andra motorns värden i panelen kan bli fel.</small>
 </fieldset>
 
 <canvas id=curve width=860 height=220 style="width:100%;border:1px solid var(--line);border-radius:6px"></canvas>
@@ -43,7 +47,7 @@
 <fieldset><legend>Program och global</legend>
   Program <select id=prog></select>
   <button id=recall>Hämta (PC)</button>
-  <button id=store title="Kräver S=1 på enheten">Spara hit (CC 18)</button>
+  <button id=store title="Kräver S=1 på enheten (nollställs vid uppstart). Overifierat: i våra mätningar syntes ingen effekt.">Spara hit (CC 18, overifierat)</button>
   | In/Out <select id=io>
     <option value=2>Aktiv</option><option value=1>Parametrisk bypass (antaget)</option>
     <option value=0>Total bypass (antaget)</option></select><button id=sendio>Skicka</button>
@@ -66,28 +70,32 @@ const shown = () => +document.querySelector('input[name=eng]:checked').value || 
 
 function log(s) { const l = $('log'); l.textContent += s + '\n'; l.scrollTop = l.scrollHeight; }
 
-// --- sändkö: ett CC i taget med fördröjning (enheten tappar snabba meddelanden)
+// --- sändkö: ett meddelande i taget med fördröjning (enheten tappar snabba meddelanden).
+// PC går också genom kön, annars hamnar den mitt i en pågående filtersekvens.
 const q = []; let busy = false;
 async function pump() {
   if (busy) return; busy = true;
   while (q.length) {
-    const [cc, v] = q.shift();
-    out.send([0xB0 | (+$('ch').value - 1), cc, v]);
-    log(`UT cc ${cc} = ${v}`);
+    const m = q.shift(); m[0] |= +$('ch').value - 1;
+    try { out.send(m); log('UT ' + (m.length > 2 ? `cc ${m[1]} = ${m[2]}` : `pc ${m[1]}`)); }
+    catch (e) { log('Fel vid sändning: ' + e.message); }   // utan detta fastnar busy=true
     await sleep(+$('delay').value);
   }
   busy = false;
 }
-const cc = (n, v) => { if (!out) return log('Inte ansluten'); q.push([n, v]); pump(); };
-const pc = p => { if (!out) return log('Inte ansluten'); out.send([0xC0 | (+$('ch').value - 1), p]); log(`UT pc ${p}`); ptr.e = ptr.f = null; };
+const send = m => { if (!out) return log('Inte ansluten'); q.push(m); pump(); };
+const cc = (n, v) => send([0xB0, n, v]);
+const pc = p => { send([0xC0, p]); ptr.e = ptr.f = null; };
 
 // välj motor+filter, sedan parametern (pekararkitekturen, docs/midi.md)
 function setParam(f, param, userVal, skipSelect) {
+  const v = DSP.toCC(param, userVal);
+  if (Number.isNaN(v)) return log(`Ogiltigt värde för ${param}`);
   const e = +document.querySelector('input[name=eng]:checked').value;
   if (!skipSelect) { cc(DSP.CC.engine, e); cc(DSP.CC.filter, f); }
-  cc(DSP.CC[param], param === 'mode' ? userVal : DSP.enc[param](userVal));
-  for (const m of e ? [e] : [1, 2]) state[m][f][param] = userVal;
-  drawCurve();
+  cc(DSP.CC[param], v);
+  for (const m of e ? [e] : [1, 2]) state[m][f][param] = DSP.dec[param](v);
+  render();                                               // visar klämt värde om det justerats
 }
 
 // --- rendera tabellen
@@ -164,7 +172,7 @@ function onMsg(ev) {
   else {
     const p = Object.keys(DSP.CC).find(k => DSP.CC[k] === a);
     if (!['mode', 'freq', 'fine', 'bw', 'gain'].includes(p) || ptr.f == null || ptr.e == null) return;
-    const v = p === 'mode' ? b : DSP.dec[p](b);
+    const v = DSP.dec[p](b);
     for (const m of ptr.e ? [ptr.e] : [1, 2]) state[m][ptr.f][p] = v;
     render();
   }
@@ -181,6 +189,7 @@ async function init() {
   midi.onstatechange = fill; fill();
 }
 $('conn').onclick = () => {
+  if (!midi) return;
   out = midi.outputs.get($('out').value);
   if (input) input.onmidimessage = null;
   input = midi.inputs.get($('inp').value);

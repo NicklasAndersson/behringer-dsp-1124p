@@ -5,10 +5,14 @@ const DSP = {
   CC: { engine: 12, filter: 10, mode: 11, freq: 13, fine: 14, bw: 15, gain: 16, fb: 17, store: 18, inout: 19 },
   MODES: ['OF', 'PA', 'AU', 'SI'],
   // användarvärde -> CC-värde (verifierat mot enheten utom fb/inout)
-  enc: { freq: i => i, fine: f => f + 9, bw: b => b - 1, gain: db => db + 48, fb: s => -3 - s },
-  dec: { freq: v => v, fine: v => v - 9, bw: v => v + 1, gain: v => v - 48, fb: v => -3 - v },
+  enc: { mode: m => m, freq: i => i, fine: f => f + 9, bw: b => b - 1, gain: db => db + 48, fb: s => -3 - s },
+  dec: { mode: v => v, freq: v => v, fine: v => v - 9, bw: v => v + 1, gain: v => v - 48, fb: v => -3 - v },
+  MAX: { mode: 3, freq: 30, fine: 19, bw: 119, gain: 64, fb: 6 },
   fmtHz: hz => hz >= 1000 ? hz / 1000 + ' kHz' : hz + ' Hz',
 };
+// användarvärde -> giltigt CC-värde (avrundat, klämt till 0..MAX), NaN om ogiltigt.
+// Web MIDI kastar på databyte > 127 och låser då sändkön.
+DSP.toCC = (p, u) => { const v = Math.round(DSP.enc[p](u)); return Number.isFinite(v) ? Math.max(0, Math.min(DSP.MAX[p], v)) : NaN; };
 // EQ-kurva (OVERIFIERAD mot enheten): RBJ peaking-biquad, Q ur bandbredd i 1/60-oktav (b).
 DSP.FS = 46875;
 DSP.q = b => { const n = Math.pow(2, b / 60); return Math.sqrt(n) / (n - 1); };

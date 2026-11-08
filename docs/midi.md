@@ -1,7 +1,7 @@
 # DSP1124P – MIDI
 
-Status: **tabellen nedan är ur manualen (kap. 11.3, sida 22, "Tab. 11.4/11.5") och
-ännu inte verifierad mot enheten.** Källa: manualshelf.com-spegeln av
+Status: tabellen nedan är ur manualen (kap. 11.3, sida 22, "Tab. 11.4/11.5"). Kolumnen
+"Verifierat" visar vad som provats mot enheten; resten är manualens uppgift. Källa: manualshelf.com-spegeln av
 manual Rev. A (`DATA-MANFULL_DSP1124P_ENG_Rev. A`). Ingen PDF hämtad – speglarna
 (manualslib, manualowl, manuallib) blockerar nedladdning.
 
@@ -30,17 +30,23 @@ sniffas (se testlogg).
 |----|-----------|--------------|----------|------------|
 | 10 | Filter Select | 1..12 | 0..11 | 0 → filter 1 (2026-11-08) |
 | 11 | Filter Mode | OF, PA, AU, SI | 0..3 | 1 = PA (2026-11-08) |
-| 12 | Engine (Couple / Left / Right) | – | 0,1,2 | – |
+| 12 | Engine (Couple / Left / Right) | – | 0,1,2 | 1 → L-lampan, 2 → R-lampan (2026-11-08); 0 = Couple ej provat |
 | 13 | Frequency | 20 Hz..20 kHz | 0..30 (31 steg, troligen 1/3-oktav) | 4 → "50" i displayen (2026-11-08); ISO-index 20,25,31.5,40,50 |
-| 14 | Fine (1/60 okt) | −9..+10 | 0..19 | – |
+| 14 | Fine (1/60 okt) | −9..+10 | 0..19 | Enheten sänder CC 14 vid vridning (2026-11-08); mottagning ej avläst |
 | 15 | Bandwidth | 1..120 | 0..119 | 0 → 1, 11 → 12 (2026-11-08) |
 | 16 | Gain (dB) | −48..+16 | 0..64 | 64 → +16, 36 → −12 (2026-11-08) |
 | 17 | Feedback Sensitivity | −3..−9 | 0..6 | – |
-| 18 | Store | 1..10 | 0..9 | – |
+| 18 | Store | 1..10 | 0..9 | Nej: ingen ändring syntes i dumparna (m00–m03), se SysEx-avsnittet |
 | 19 | In/Out | – | 0..2 | – |
 
 LED-kolumnen i manualen: Engine 0/1/2 ↔ Couple/Left/Right; In/Out 2 = IN on,
-1 = IN off, 0 = IN flashing (att verifiera).
+1 = IN off, 0 = IN flashing. Enligt manualen kap. 4 (punkt 14) betyder släckt LED att
+de parametriska filtren är bypassade, och blinkande LED Total Bypass (alla filter av).
+Alltså 2 = aktiv, 1 = PA-bypass, 0 = total bypass. Det är manualens uppgift, inte provat.
+
+Couple: manualen (kap. 4, punkt 9) säger att när man byter till Couple kopieras den aktiva
+motorns parametrar till den andra. Att skicka `CC 12 = 0` kan alltså skriva över den andra
+motorn helt. Ej provat via MIDI.
 
 Antaganden att testa:
 - Gain: `värde = dB + 48` (65 steg, 1 dB/steg).
@@ -86,7 +92,8 @@ detta är hypoteser att testa med `probe.html`.
   packning och att ljudet tystnar under dumpen. Device/Model-ID anges inte –
   **sniffa dumpen** (sätt `d` = 2, tryck STORE, spara loggen i sonden).
 - **Fördröjning:** 20–50 ms mellan CC-meddelanden, annars kan enhetens buffert
-  svämma över. Sonden använder 50 ms i svepet.
+  svämma över. **Stämmer inte med våra försök:** 40 ms och 150 ms gav felaktiga
+  avläsningar, 300 ms fungerade, och REW tar ca 1 s per filter. Panelen använder 300 ms.
 - **Q-formel:** `Q = √(2^N)/(2^N − 1)`, `N = b/60`. Ger Q ≈ 86,5 vid b=1 och
   ≈ 0,667 vid b=120. Verifiera mot enhetens kurva innan vi ritar EQ-kurvan med den.
 - **Samplingsfrekvens 46,875 kHz:** stämmer med manualens tekniska data.
@@ -127,6 +134,10 @@ Ingen öppen kod hittad (GitHub-sökning gav inget). Vad som finns:
 - Längd: **1184 byte** totalt (F0 … F7). Alla databyte < 128.
 - Huvud: `F0 00 20 32 00 08 0F` = Behringer-ID `00 20 32`, device `00`, model `08`
   (antaget), kommando `0F` (antaget: dump). Därefter 1176 byte payload, sedan `F7`.
+> **Föråldrat:** punkterna om 7/8-kodning, checksumma och 28-byteperiod nedan bygger på
+> uppackningen som visade sig vara fel väg (se "Avkodat" längre ned). Fälten ligger som
+> 7-bitsbyte i råströmmen. Texten står kvar som historik.
+
 - **7/8-kodning (2026-11-08):** payloaden är Behringers 7/8-kodning: varje grupp om 8 byte
   = 7 databyte (låga 7 bitar) + en åttonde byte med deras högsta bitar (bit 6 → första
   byten, bit 0 → sjunde). 1176 byte = 147 grupper → **1029 dekodade byte**. Algoritmen är
@@ -170,6 +181,11 @@ inte som tänkt vid upprepade försök, eller så ligger gain/frekvens för det 
 jämfört. Praktiskt: `d` återställs till 0 efter varje dump och måste sättas till 2 före nästa STORE;
 `S` verkade stanna på 1. Avkodning kräver fler kontrollerade mätningar med manuell lagring.
 
+Slutsats i efterhand (2026-11-08): a-serien, sparad med STORE-*knappen*, ändrade dumpen
+varje gång. m-serien, sparad med `CC 18`, ändrade den aldrig. Det tyder på att `CC 18` inte
+sparade, inte på att fälten ligger någon annanstans. Orsaken är okänd (kanske `S`, kanske
+programnumret). Panelens spara-knapp (CC 18) är därför overifierad.
+
 ### Avkodat: gain och frekvens (2026-11-08, `dumps/a00..a13`)
 
 **Rättelse:** 7/8-uppackningen ovan är sannolikt fel väg. Fälten ligger som egna **7-bitsbyte
@@ -185,7 +201,7 @@ STORE-knappen:
 | Gain | 936 | `dB + 48` (samma som CC 16) | −7→41, −6→42, −4→44 |
 | Frekvens + fine (+ läge) | 933:934 (14 bitar, hög byte först) | `40 × ISO-index + 2 × fine`, **+ 8192 (bit 13) i läge PA** | PA, fine −9, idx 4–7 = 8334, 8374, 8414, 8454; fine −9→−8 = 8334→8336; PA→OF: 8336→144 |
 | Bandbredd | 935 | `bw − 1` (samma som CC 15) | 21→20, 22→21, 30→29 |
-| (härlett) | 879 | `(frekvensvärde >> 1) & 127` | stämmer på 5 värden |
+| Kopia av fälten ovan | 878–882 | samma 28 bitar (frekv 14 + bw 7 + gain 7), **förskjutna 1 bit** | alla 19 dumpar i `dumps/` |
 
 - Enhet 1/120 oktav: 40 = 1/3 oktav (ISO-steg), 2 = 1/60 oktav (fine). Bit 13 (= bit 6 i råbyte 933) är en lägesbit (satt i PA, noll i OF). Lägesfältet kan vara två bitar; SI/AU ej mätta.
 - PA→OF (a12→a13) ändrade även gain-byten 44→48 (= 0 dB): troligen tvingas gain till 0 i OF, en mätning.
@@ -195,15 +211,21 @@ STORE-knappen:
 - Två dumpar utan ändring emellan (`a01`, `a02`) är identiska → dumpen är stabil.
 - `a00` (före första sparning i program 9) skiljer sig från `a01` i 92 uppackade byte: det är
   platsens gamla innehåll mot första sparningen, inte en gain-ändring.
-- Råbyte 880/881 ändras med bandbredd men inte linjärt (bw 21: 10/22, 22: 10/86, 30: 14/86);
-  pariteten som jag först gissade för bit 6 i 881 är **motbevisad** (bw−1=29 har jämn paritet,
-  bit 6 blev ändå 1). 879–881 är sannolikt beräknade värden (filterkoefficienter?) som enheten
-  räknar fram. Ej avkodade. Okänt om enheten kräver dem vid inkommande dump.
-- Öppet: bara en kopia av gain ändrades fast motorläget troligen var Couple.
+- **Rättat 2026-11-08:** 878–882 är *inte* beräknade koefficienter. Läser man råbyte 933–936
+  som en 28-bitars bitström (frekvens 14, bw 7, gain 7 bitar) och förskjuter den en bit, får
+  man exakt råbyte 878–882 (bit 6 i 878 och de låga 6 bitarna i 882 hör till grannfälten).
+  T.ex. `881 = ((bw & 1) << 6) | (gain >> 1)`: bw-byte 21 → bit 6 = 1, gain 42 → 21. Det
+  tidigare "motbevisandet" av bit 6 blandade ihop paritet (antal ettor) med minst signifikant bit.
+  Kontrollerat med ett skript mot alla 19 dumpar: inga avvikelser.
+- Kopian börjar 384 bitar (= 12 × 32) före originalet. Hypotes: den andra motorns filter 1
+  (programmet var troligen i Couple, så båda ändrades). Ej verifierat. Det betyder också att
+  poster kanske inte ligger på jämna råbyte utan är bitpackade, så "poster på 32 × k" ovan
+  gäller bara den här platsen.
 
 ## Saknas
-- SysEx-format (finns, men odokumenterat; `d`-läge 2 dumpar hela minnet)
-- Om enheten sänder CC vid vridning/tryck (C = 2/3/4 ska göra det)
+- SysEx-format: gain, frekvens, fine, bandbredd och en lägesbit hittade för ett filter (se ovan); resten är oavkodat
+- Om enheten sänder CC 12/10 när man byter motor/filter på frontpanelen (vid vridning har bara själva parametern setts)
+- CC 17 (riktning −3..−9 ↔ 0..6), CC 19, CC 12 = 0 och CC 18 mot enheten
 - Exakt bandwidth-enhet
 
 ## Testlogg

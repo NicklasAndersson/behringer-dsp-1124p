@@ -8,10 +8,12 @@ assert.strictEqual(D.enc.gain(16), 64);                 // CC16=64 -> +16 dB
 assert.strictEqual(D.enc.bw(12), 11);                   // CC15=11 -> 12
 assert.strictEqual(D.enc.bw(1), 0);                     // CC15=0  -> 1
 assert.strictEqual(D.enc.fine(0), 9);                   // 9 = 0 offset
-for (const k of ['fine', 'bw', 'gain', 'fb']) {         // enc/dec är varandras invers
-  for (let v = 0; v <= (k === 'fb' ? 6 : k === 'fine' ? 19 : k === 'gain' ? 64 : 119); v++)
-    assert.strictEqual(D.enc[k](D.dec[k](v)), v, k + ' ' + v);
-}
+for (const k in D.MAX)                                  // enc/dec är varandras invers
+  for (let v = 0; v <= D.MAX[k]; v++) assert.strictEqual(D.enc[k](D.dec[k](v)), v, k + ' ' + v);
+assert.strictEqual(D.toCC('bw', 0), 0);                  // klämning: aldrig utanför 0..MAX
+assert.strictEqual(D.toCC('bw', 500), 119);
+assert.strictEqual(D.toCC('fine', 1.4), 10);
+assert(Number.isNaN(D.toCC('gain', NaN)));
 const near = (a, b, tol) => assert(Math.abs(a - b) < tol, `${a} != ${b}`);
 near(D.q(1), 86.54, 0.1); near(D.q(120), 0.667, 0.001);          // värden ur rapporten
 const flt = { freq: 4, fine: 0, bw: 12, gain: -12 };            // 50 Hz, -12 dB
