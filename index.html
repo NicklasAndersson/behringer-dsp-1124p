@@ -22,11 +22,8 @@
   @media(max-width:640px){td,th{padding:.2rem}}
 </style>
 <h1>DSP1124P</h1>
-<p class=warn>Tryck <b>Läs från enheten</b> (kräver inkopplad MIDI IN) för att hämta det <i>sparade</i> programmet.
-Osparade ändringar syns inte i läsningen: STORE-lampan blinkar när något är osparat. Efter en läsning följer panelen
-det du skickar och det enheten sänder när du vrider på den (CC 12/10 vid motor-/filterbyte, parametern vid vridning,
-men inget när du bara trycker en parameterknapp).
-Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
+<p>Tryck <b>Läs från enheten</b> (kräver MIDI IN) för att hämta de sparade programmen. Därefter följer panelen det du skickar och vridningar på enheten.
+Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
 
 <fieldset><legend>Anslutning</legend>
   Ut: <select id=out></select> In (valfri): <select id=inp><option value="">–</option></select>
@@ -39,29 +36,33 @@ Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
   <label><input type=radio name=eng value=1 checked> Vänster</label>
   <label><input type=radio name=eng value=2> Höger</label>
   <label><input type=radio name=eng value=0> Couple (båda)</label>
-  <small class=warn>Couple (CC 12 = 0) kopierar <i>hela</i> den aktiva motorns inställningar till den andra
-  (provat 2026-11-09). Panelen kopierar bara den parameter du skickar, så den andra motorns värden i panelen kan bli fel.</small>
+  <small>Couple skickar ändringar till båda motorerna.</small>
 </fieldset>
 
 <fieldset><legend>Nivå</legend>
   <label><input type=checkbox id=meter> Live-mätare (kräver In-port)</label>
   <div class=meter data-ch=L><b>L</b><span class=segs></span><output></output></div>
   <div class=meter data-ch=R><b>R</b><span class=segs></span><output></output></div>
-  <small>Efter filtren, åtta segment som på displayen (−40, −30, −20, −15, −10, −6, −3, clip). L är mätt mot displayen.
-  <span class=warn>R är en hypotes</span> (antas vara byggd som L) och är inte kontrollerad.</small>
+  <small>Efter filtren, åtta segment som på displayen (−40, −30, −20, −15, −10, −6, −3, clip). </small>
 </fieldset>
 
 <canvas id=curve width=860 height=220 style="width:100%;border:1px solid var(--line);border-radius:6px"></canvas>
-<small>Kurvan är beräknad (standard peak-EQ, Q ur bandbredd), inte mätt på enheten. Visar filter i läge PA.</small>
+<small>Kurvan är summan av filter i läge PA (beräknad som peak-EQ, Q ur bandbredd).</small>
 <table id=tbl>
   <tr><th>#<th>Läge<th>Frekvens<th>Fine<th>Bandbredd (1/60 okt)<th>Gain (dB)<th></tr>
 </table>
 
-<fieldset><legend>Program och global</legend>
-  Program <select id=prog></select>
-  <button id=recall>Hämta (PC)</button>
+<fieldset><legend>Visa program (påverkar inte enheten)</legend>
+  Visa <select id=view></select> <span id=viewstat></span>
   <button id=read title="Skickar SysEx-begäran. Webbläsaren frågar om SysEx-tillstånd.">Läs från enheten</button> <span id=readstat></span>
-  <button id=store title="Kräver S=1 på enheten (nollställs vid varje uppstart)">Spara hit (CC 18, kräver S=1)</button>
+  <br><small>Tabellen visar det valda programmet från senaste läsningen. Redigering går bara när det är samma program som är aktivt på enheten.</small>
+</fieldset>
+
+<fieldset><legend>Program på enheten och global</legend>
+  Program <select id=prog></select>
+  <button id=recall>Byt program på enheten (PC)</button>
+  <button id=store title="Kräver S=1 på enheten">Spara hit (CC 18)</button>
+  <button id=reset>Nollställ program</button>
   | In/Out <select id=io>
     <option value=2>Aktiv</option><option value=1>Parametrisk bypass</option>
     <option value=0>Total bypass</option></select><button id=sendio>Skicka</button>
@@ -84,6 +85,8 @@ const ptr = { e: null, f: null };                       // enhetens "pekare" (se
 // state[motor][filter] — motor 1=L, 2=R. Standardprogram: PA, 500 Hz, bw 60, 0 dB.
 const def = () => ({ mode: 1, freq: 14, fine: 0, bw: 60, gain: 0 });
 const state = { 1: Array.from({ length: 12 }, def), 2: Array.from({ length: 12 }, def) };
+let dump = null, viewP = 0, activeP = 0;                // senaste läsningen; program som visas / är aktivt på enheten
+const cur = () => dump && viewP !== activeP ? dump.programs[viewP][shown() - 1] : state[shown()];
 const shown = () => +document.querySelector('input[name=eng]:checked').value || 1;
 
 function log(s) { const l = $('log'); l.textContent += s + '\n'; l.scrollTop = l.scrollHeight; }
@@ -104,7 +107,7 @@ async function pump() {
 }
 const send = m => { if (!out) return log('Inte ansluten'); q.push(m); pump(); };
 const cc = (n, v) => send([0xB0, n, v]);
-const pc = p => { send([0xC0, p]); ptr.e = ptr.f = null; };
+const pc = p => { send([0xC0, p]); ptr.e = ptr.f = null; activeP = p; viewP = p; $('view').value = p; };
 
 // välj motor+filter, sedan parametern (pekararkitekturen, docs/midi.md)
 function setParam(f, param, userVal, skipSelect) {
@@ -138,7 +141,7 @@ function drawCurve() {
   for (const db of [-24, -12, 0, 12]) { g.beginPath(); g.moveTo(0, y(db)); g.lineTo(W, y(db)); g.stroke(); g.fillText(db + ' dB', 3, y(db) - 2); }
   for (const f of [100, 1000, 10000]) { g.beginPath(); g.moveTo(x(f), 0); g.lineTo(x(f), H); g.stroke(); g.fillText(DSP.fmtHz(f), x(f) + 3, H - 3); }
   g.globalAlpha = 1; g.lineWidth = 2; g.strokeStyle = '#2a7'; g.beginPath();
-  const act = state[shown()].filter(s => s.mode === 1 && s.gain !== 0);
+  const act = cur().filter(s => s.mode === 1 && s.gain !== 0);
   for (let i = 0; i <= W; i += 2) {
     const f = 20 * Math.pow(1000, i / W), db = act.reduce((s, fl) => s + DSP.peakDb(fl, f), 0);
     g[i ? 'lineTo' : 'moveTo'](i, y(Math.max(lo, Math.min(hi, db))));
@@ -147,11 +150,12 @@ function drawCurve() {
 }
 function render() {
   drawCurve();
-  const s = state[shown()];
+  const s = cur(), ro = viewP !== activeP;
+  $('viewstat').textContent = dump ? (ro ? `(aktivt på enheten: ${activeP + 1})` : '(aktivt på enheten)') : '';
   for (const r of tbl.rows) {
     if (!r.dataset.f) continue;
     const st = s[+r.dataset.f];
-    for (const el of r.querySelectorAll('[data-p]')) el.value = st[el.dataset.p];
+    for (const el of r.querySelectorAll('[data-p],[data-send]')) { el.disabled = ro; if (el.dataset.p) el.value = st[el.dataset.p]; }
     r.querySelector('output').textContent = (st.gain > 0 ? '+' : '') + st.gain;
   }
 }
@@ -170,7 +174,8 @@ tbl.addEventListener('click', e => {
 document.querySelectorAll('input[name=eng]').forEach(r => r.onchange = render);
 
 // --- program, in/out, feedback
-for (let i = 1; i <= 10; i++) $('prog').add(new Option(i, i - 1));
+for (let i = 1; i <= 10; i++) { $('prog').add(new Option(i, i - 1)); $('view').add(new Option(i, i - 1)); }
+$('view').onchange = () => { viewP = +$('view').value; render(); };
 for (let s = -3; s >= -9; s--) $('fb').add(new Option(s + ' dB', s));
 let meterPause = 0, meterTimer = null;
 document.querySelectorAll('.meter').forEach(r => { for (let i = 0; i < 8; i++) r.querySelector('.segs').append(Object.assign(document.createElement('span'), { className: 'seg' })); });
@@ -215,29 +220,30 @@ function renderAll(r) {
     d.innerHTML = `<summary><b>Program ${p + 1}</b>${p + 1 === r.active ? ' (aktivt)' : ''} – ${used ? used + ' av 24 filter ändrade' : 'tomt/standard'}</summary>
       <table class=all><tr><th>#<th>Vänster (läge, frekvens · bw · gain)<th>Höger</tr>${
       Array.from({ length: 12 }, (_, k) => `<tr><td>${k + 1}<td class="${pr[0][k].mode === 0 ? 'dim' : ''}">${fl(pr[0][k])}<td class="${pr[1][k].mode === 0 ? 'dim' : ''}">${fl(pr[1][k])}`).join('')}</table>
-      <button data-reset=${p}>Nollställ program ${p + 1}</button>`;
+`;
     box.append(d);
   });
 }
-$('all').addEventListener('click', e => {
-  const p = e.target.dataset.reset; if (p === undefined) return;
+$('reset').onclick = () => {
+  const p = +$('prog').value;
   if (!out) return log('Inte ansluten');
   if (!confirm(`Nollställ program ${+p + 1}? Alla 24 filter blir OF, 500 Hz, fine 0, bandbredd 60, 0 dB och programmet sparas över (CC 18, kräver S=1). Det tar ca 1 minut och enheten byter till programmet.`)) return;
   for (const [k, a, b] of DSP.resetProgram(+p)) k === 'pc' ? send([0xC0, a]) : k === 'cc' ? cc(a, b) : q.push(a);
-  ptr.e = ptr.f = null;
+  ptr.e = ptr.f = null; activeP = viewP = p; $('view').value = p;
   if (input) { q.push(1000); readDev(); }                // läs om så att resultatet syns
-});
+};
 function onDump(d) {
   const r = DSP.parseDump(d); if (!r) return log(`IN sysex ${d.length} B (okänt)`);
-  for (const m of [1, 2]) state[m] = r.programs[r.active - 1][m - 1].map(f => ({ ...f }));
-  $('prog').value = r.active - 1; $('io').value = r.inout; fbCC = { 1: r.fbL, 2: r.fbR }; showFb(); ptr.e = ptr.f = null; render();
+  dump = r; activeP = viewP = r.active - 1; $('view').value = viewP;
+  for (const m of [1, 2]) state[m] = r.programs[activeP][m - 1].map(f => ({ ...f }));
+  $('prog').value = activeP; $('io').value = r.inout; fbCC = { 1: r.fbL, 2: r.fbR }; showFb(); ptr.e = ptr.f = null; render();
   $('readstat').textContent = `läste program ${r.active} kl. ${new Date().toLocaleTimeString()}`;
   renderAll(r); log(`IN dump: aktivt program ${r.active}`);
 }
 function onMsg(ev) {
   if (ev.data[0] === 0xF0) { const m = DSP.parseMeter(ev.data); return m ? (drawMeter('L', m.L), drawMeter('R', m.R)) : onDump(ev.data); }
   const [st, a, b] = ev.data;
-  if ((st & 0xF0) === 0xC0) { ptr.e = ptr.f = null; return log(`IN pc ${a}`); }
+  if ((st & 0xF0) === 0xC0) { ptr.e = ptr.f = null; activeP = viewP = a; $('view').value = a; render(); return log(`IN pc ${a}`); }
   if ((st & 0xF0) !== 0xB0) return;
   log(`IN cc ${a} = ${b}`);
   if (a === DSP.CC.engine) ptr.e = b;
