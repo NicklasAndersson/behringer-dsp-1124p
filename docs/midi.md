@@ -408,3 +408,25 @@ Med layouten 32 bitar per post sitter två "markörbitar" som inte hör till nå
   (OF-innehåll), och de äldsta programmen (innan 2026-11-09) hade Y i stället. Orsaken är okänd.
 - **Följd:** avkodaren maskar bort biten (`u >> 1`), och inga mätta fält påverkas. Den behöver inte förstås för att panelen ska matcha enheten.
 - **Bonus:** STORE-knappen med `d` = 0 sänder `CC 18 = programnummer − 1` och sparar, utan dump. Samma som `CC 18` från datorn.
+
+### Kommandona `40`, `44`, `45` (2026-11-09)
+
+Svar (nyttolasten efter svarskommandot, alltså efter `F0 00 20 32 00 08 <svar>`):
+
+| Begäran | Svar | Slutsats |
+|---------|------|----------|
+| `40` | `00` + `01 01` | **Konstant.** Samma efter byte av program, motor, filter, läge, frekvens, gain, feedback. Betydelse okänd (version eller enhetstyp är en gissning). |
+| `45` | `05` + `01 7b` | **Konstant** på samma sätt. Betydelse okänd. |
+| `44` | `04` + 8 byte | **Förändras med ljudet som kommer in**, ingenting annat. Se nedan. |
+
+`44` i detalj (samplad 10 ggr/s i 60 s, `tmp/` i sessionen, ingen fil sparad i repot):
+- I tystnad: `00 00 20 00 10 00 00 00`, där byte 4 varierar mellan `08`, `10`, `18` (och sällan `20`) och byte 2 mellan `00`, `20`, `40`, `60`.
+- När ljud kom in steg bytes 0–4: byte 0–1 som ett tal (`byte0·128 + byte1`) upp till `3f 7f` = 8191 (**13 bitar, klippte**), byte 3 upp till `7f`.
+  Efter ljudet sjönk värdena mjukt tillbaka till tystnadsläget på ungefär ett par sekunder (som en mätare med utklingning).
+- Byte 5–7 var alltid 0 i alla ca 1 200 prov.
+- Oberoende av program, motor, filter, läge, frekvens, gain och feedback (variationen låg inom bruset).
+- Det första svaret jag fick i svepet (`00 01 00 00 38 …`) passar in: det togs medan ljud kom in.
+- **Tolkning (hypotes, ej bevisad):** en live-nivåmätare. Vad bytes 0–1, 2, 3 och 4 mäter (ingång, utgång, vänster, höger, klippning) är inte avgjort.
+  Ett försök att jämföra In/Out-lägena (`CC 19` = 2, 1, 0, 2) med ett antaget jämnt ljud var inte avgörande: nivåerna var små (≈ 20–30 av 8191)
+  och skillnaderna inom bruset. Troligen kom inget jämnt ljud in under försöket.
+- Skulle gå att avgöra med en jämn ton på bara vänster respektive höger ingång.
