@@ -168,7 +168,7 @@ $('clr').onclick = () => $('log').textContent = '';
 function onDump(d) {
   const r = DSP.parseDump(d); if (!r) return log(`IN sysex ${d.length} B (okänt)`);
   for (const m of [1, 2]) state[m] = r.programs[r.active - 1][m - 1].map(f => ({ ...f }));
-  $('prog').value = r.active - 1; ptr.e = ptr.f = null; render();
+  $('prog').value = r.active - 1; $('io').value = r.inout; $('fb').value = r.fb - 9; ptr.e = ptr.f = null; render();
   $('readstat').textContent = `läste program ${r.active} kl. ${new Date().toLocaleTimeString()}`;
   log(`IN dump: aktivt program ${r.active}`);
 }

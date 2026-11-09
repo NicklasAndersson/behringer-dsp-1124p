@@ -29,6 +29,11 @@ def load(path):  # -> (header[7], dekodad payload)
 def active(path):  # aktivt program 1-10: 4 bitar på payloadbit 8068 (mätt 2026-11-09 med PC 0-9 + begäran 4F)
     d = open(path, 'rb').read(); return int(''.join(f'{b:07b}' for b in d[7:-1])[8068:8072], 2)
 
+def globals_(path):  # svansen: 8-bitarsgrupper från payloadbit 8067, värdet = de fem översta bitarna (2026-11-09)
+    d = open(path, 'rb').read(); b = ''.join(f'{x:07b}' for x in d[7:-1])[8067:]
+    v = [int(b[8 * j:8 * j + 5], 2) for j in range(8)]
+    return dict(active=v[0], inout=(v[1] + 1) % 4, fb=v[3], c=v[4], omni=v[5], C=v[6], P=v[7], okand=v[2])  # inout/fb = CC 19/CC 17-värden
+
 def filters(path):  # -> {(program 1-10, motor 0=V/1=H, filter 1-12): (läge PA?, ISO-index, fine, bw, gain dB)}
     # Råa 7-bitsbyte, 32 bitar per filter: frekvens 14 (bit 13 = PA, LSB oanvänd), bw-1 7, gain+48 7, 4 bitar noll.
     # Program 1-10 ligger 768 bitar isär (verifierat 2026-11-09, dumps/e01).
@@ -63,6 +68,10 @@ elif __name__ == '__main__':
         assert c[10, 0, k + 1] == (True, 2 * k + 3, k + 2 - 9, 11 + 7 * k, 20 + 3 * k - 48), k
         assert c[10, 1, k + 1] == (True, 29 - 2 * k, 19 - k - 9, 101 - 7 * k, 60 - 3 * k - 48), k
     assert (active(os.path.join(D, 'd00-aktivt-program-1.syx')), active(os.path.join(D, 'd09-aktivt-program-10.syx'))) == (1, 10)
+    g = lambda n: globals_(os.path.join(D, n))
+    assert g('e00-backup-fore-p1-8.syx') == dict(active=10, inout=2, fb=3, c=1, omni=1, C=3, P=3, okand=3)
+    assert (g('f01-meny-c2-O1-C4-P2.syx')['c'], g('f01-meny-c2-O1-C4-P2.syx')['C'], g('f01-meny-c2-O1-C4-P2.syx')['P']) == (2, 4, 2)
+    assert (g('f02-fb-cc17-0.syx')['fb'], g('f03-inout-cc19-0.syx')['inout']) == (0, 0)
     e = filters(os.path.join(D, 'e01-program1-8-testvarden.syx'))  # 31 av 32 testfilter; p7 H f12 klämdes av enheten
     for pr in range(1, 9):
         for m in (1, 2):

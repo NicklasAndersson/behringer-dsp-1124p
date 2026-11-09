@@ -27,6 +27,9 @@ for (let k = 0; k < 12; k++) {
   assert.deepStrictEqual(c.programs[9][0][k], { mode: 1, freq: 2 * k + 3, fine: k + 2 - 9, bw: 11 + 7 * k, gain: 20 + 3 * k - 48 });
   assert.deepStrictEqual(c.programs[9][1][k], { mode: 1, freq: 29 - 2 * k, fine: 19 - k - 9, bw: 101 - 7 * k, gain: 60 - 3 * k - 48 });
 }
+const e0 = D.parseDump(dump('e00-backup-fore-p1-8.syx'));
+assert.deepStrictEqual([e0.active, e0.inout, e0.fb, e0.c, e0.omni, e0.C, e0.P], [10, 2, 3, 1, 1, 3, 3]);
+assert.strictEqual(D.parseDump(dump('f02-fb-cc17-0.syx')).fb, 0); assert.strictEqual(D.parseDump(dump('f03-inout-cc19-0.syx')).inout, 0);
 assert.strictEqual(D.parseDump(dump('d00-aktivt-program-1.syx')).active, 1);
 assert.deepStrictEqual(D.parseDump(dump('b01-L-f1-1k-fine5-bw20-g-6.syx')).programs[8][0][0], { mode: 1, freq: 17, fine: 5, bw: 20, gain: -6 });
 assert.strictEqual(D.parseDump([0xF0, 0xF7]), null);

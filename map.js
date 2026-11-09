@@ -38,6 +38,8 @@ DSP.parseDump = d => {
     const lo = r > 10 ? 1 : 0;
     return { mode: u >> 13, freq: Math.floor(u2 / 20) + lo, fine: r - 20 * lo, bw: parseInt(bits.substr(s + 14, 7), 2) + 1, gain: parseInt(bits.substr(s + 21, 7), 2) - 48 };
   })));
-  return { active: parseInt(bits.substr(8068, 4), 2), programs };
+  const g = j => parseInt(bits.substr(8067 + 8 * j, 5), 2);   // svansen: 8-bitarsgrupper, värdet = fem översta bitarna
+  // inout/fb är CC 19/CC 17-värden. c, omni, C, P = MIDI-menyn. okand = byte 2 (3 nu, 0 i äldre dumpar, orsak okänd).
+  return { active: g(0), inout: (g(1) + 1) % 4, fb: g(3), c: g(4), omni: g(5), C: g(6), P: g(7), okand: g(2), programs };
 };
 if (typeof module !== 'undefined') module.exports = DSP;

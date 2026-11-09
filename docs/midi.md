@@ -344,3 +344,27 @@ Backup `e00` (hela minnet före). Sedan skrevs testvärden i filter 1 och 12 på
 - Enda avvikelsen: program 7, höger, filter 12 skickades som 20 Hz med fine −7 och lagrades som 20 Hz, fine 0.
   Troligen klämmer enheten ned till golvet (negativ frekvensenhet), men det är en hypotes, ingen mätning.
 - Aktivt program blev 8 (senast valt), vilket bekräftar att bitarna 8068..8071 följer `PC`.
+
+### Svansen: globala inställningar (2026-11-09, `dumps/f01..f03`, `e00`)
+
+Efter de tio programmen (3 + 7680 = 7683 bitar) kommer 384 nollbitar och sedan **åtta fält om 8 bitar från payloadbit 8067**.
+Värdet ligger i de fem översta bitarna i varje fält (värde << 3):
+
+| Fält | Innehåll | Kodning | Mätt med |
+|------|----------|---------|----------|
+| 0 | Aktivt program | 1..10 | `PC` 0..9 (se ovan) |
+| 1 | In/Out | `(CC 19 − 1) mod 4`: CC 19 = 2 → 1, 1 → 0, 0 → 3 | `CC 19` = 0/1/2 + `CC 18` |
+| 2 | **okänt** | 3 i nyare dumpar, 0 i äldre | ändras inte av Couple/motor/filter/läge/`S` |
+| 3 | Feedback-känslighet | = värdet i `CC 17` (dB + 9) | `CC 17` = 0, 3, 6 + `CC 18` |
+| 4 | MIDI-menyn `c` (kanal) | värdet | `c` 1 → 2 |
+| 5 | MIDI-menyn `O` (omni) | värdet | `O` 1 → 0 |
+| 6 | MIDI-menyn `C` | värdet | `C` 3 → 4 |
+| 7 | MIDI-menyn `P` | värdet | `P` 3 → 2 |
+
+- `S` (Store Enable) och `d` ändrar ingenting i dumpen (S 1 → 0 gav noll ändrade bitar).
+- De ca 100 sista bitarna efter fält 7 (nollor och en konstant del) var identiska i alla 28 dumpar.
+- Dumpen visar bara *sparat* tillstånd: `CC 17`/`CC 19` syntes först efter `CC 18`. Därför visar panelen In/Out
+  och feedback efter en läsning enligt det som senast sparades, inte nödvändigtvis det som just är aktivt.
+- Fält 2: de äldsta dumparna (`dump-143801`, `q01`, `a`/`m`-serien) har 0, nyare 3. Gissning (otestad): något
+  som ställdes om under 2026-11-09. Hypoteser som prövats och fallit: Couple, motor, filtervalet, läge, `S`.
+- Under testet ställdes menyn om och sattes tillbaka (`c`=1, `O`=1, `C`=3, `P`=3, `S`=1), dumpen blev identisk med före.
