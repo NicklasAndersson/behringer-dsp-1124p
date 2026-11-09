@@ -191,7 +191,9 @@ $('meter').onchange = () => {
   // skickas direkt, inte genom sändkön (som väntar 300 ms), men bara när kön är tom och inte under en läsning av hela minnet
   meterTimer = setInterval(() => { if (out && input && !busy && !q.length && Date.now() > meterPause) { try { out.send(DSP.REQ_METER); } catch (e) {} } }, 200);
 };
-const readDev = () => { meterPause = Date.now() + 2000; if (!input) return log('Välj en In-port och anslut igen för att kunna läsa'); $('readstat').textContent = 'läser…'; send(DSP.REQ_DUMP); };
+let readTimer;
+const readDev = () => { meterPause = Date.now() + 2000; if (!input) return log('Välj en In-port och anslut igen för att kunna läsa'); $('readstat').textContent = 'läser…'; send(DSP.REQ_DUMP);
+  clearTimeout(readTimer); readTimer = setTimeout(() => { if ($('readstat').textContent === 'läser…') $('readstat').textContent = 'inget svar från enheten – tryck igen'; }, 4000); };
 $('read').onclick = readDev;
 $('recall').onclick = () => { pc(+$('prog').value); if (input) readDev(); };   // byt program, läs sedan vad som ligger där
 $('store').onclick = () => {
@@ -277,7 +279,7 @@ $('conn').onclick = () => {
   input = midi.inputs.get($('inp').value);
   if (input) input.onmidimessage = onMsg;
   $('status').textContent = out ? `Ansluten: ${out.name}${input ? ' + in' : ''}` : 'Ingen utport';
-  if (out && input) readDev();                           // GUI i fas direkt vid anslutning
+  if (out && input) setTimeout(readDev, 500);                         // GUI i fas direkt vid anslutning
 };
 init();
 </script>
