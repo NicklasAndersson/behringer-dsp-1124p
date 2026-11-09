@@ -207,7 +207,7 @@ STORE-knappen:
 | Bandbredd | 935 | `bw − 1` (samma som CC 15) | 21→20, 22→21, 30→29 |
 | Kopia av fälten ovan | 878–882 | samma 28 bitar (frekv 14 + bw 7 + gain 7), **förskjutna 1 bit** | alla 19 dumpar i `dumps/` |
 
-- Enhet 1/120 oktav: 40 = 1/3 oktav (ISO-steg), 2 = 1/60 oktav (fine). Bit 13 (= bit 6 i råbyte 933) är en lägesbit (satt i PA, noll i OF). Lägesfältet kan vara två bitar; SI/AU ej mätta.
+- Enhet 1/120 oktav: 40 = 1/3 oktav (ISO-steg), 2 = 1/60 oktav (fine). Bit 13 (= bit 6 i råbyte 933) är en lägesbit (satt i PA, noll i OF). ~~Lägesfältet kan vara två bitar; SI/AU ej mätta.~~ **Utrett 2026-11-09:** läget är två bitar, se avsnittet om filterläge.
 - PA→OF (a12→a13) ändrade även gain-byten 44→48 (= 0 dB): troligen tvingas gain till 0 i OF, en mätning.
 - Dumpen är en ren funktion av inställningarna: a09 (tillbaka till 50 Hz/fine −9) = a05.
 - Poster ligger på `32 × k`; filter 1 (i det här programmet) har frekvens på +5/+6 och gain på
@@ -232,7 +232,7 @@ STORE-knappen:
 
 ## Saknas
 - SysEx-format: gain, frekvens, fine, bandbredd och en lägesbit hittade för ett filter (se ovan); resten är oavkodat
-- Vad de övriga bitarna i dumpen är (läge SI/AU, känslighet, In/Out, de andra filtren)
+- ~~Vad de övriga bitarna i dumpen är (läge SI/AU, känslighet, In/Out, de andra filtren)~~ (utrett 2026-11-09, se nedan)
 - Om enheten tar emot en dump (`d` = 1) och om den kräver något utöver fälten
 - Exakt bandwidth-enhet
 
@@ -302,7 +302,7 @@ Kontrolleras av `python3 -I sysex.py` (`filters()`).
 - Ett program är 768 bitar (24 × 32). Program 9 och 10 är verifierade, 1–8 antas ligga på samma avstånd.
 - **Sista biten i frekvensfältet** var satt (1) i filter 1, 5 och 9 på båda motorerna och 0 i resten. Den
   ändrar inget som displayen visar. Orsak okänd, avkodaren ignorerar den.
-- Kvar efter programblocken: ca 549 bitar (3 + 10·768 = 7683 av 8232) som inte är tolkade. Läge SI/AU ej mätta.
+- Kvar efter programblocken: ca 549 bitar (3 + 10·768 = 7683 av 8232) ~~som inte är tolkade. Läge SI/AU ej mätta.~~ **Utrett 2026-11-09:** svansen och SI/AU är avkodade, se avsnitten om svansen och filterläge.
 - STORE-knappen med `d` = 2 gav `CC 18 = 9` följt av en dump. `CC 18` från panelen utlöste ingen dump.
   Första STORE-trycket (09:14:50) gav bara `CC 18`, ingen dump. Varför är oklart.
 
