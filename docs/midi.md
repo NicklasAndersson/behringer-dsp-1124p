@@ -30,23 +30,25 @@ sniffas (se testlogg).
 |----|-----------|--------------|----------|------------|
 | 10 | Filter Select | 1..12 | 0..11 | 0 → filter 1 (2026-11-08) |
 | 11 | Filter Mode | OF, PA, AU, SI | 0..3 | 1 = PA (2026-11-08) |
-| 12 | Engine (Couple / Left / Right) | – | 0,1,2 | 1 → L-lampan, 2 → R-lampan (2026-11-08); 0 = Couple ej provat |
+| 12 | Engine (Couple / Left / Right) | – | 0,1,2 | 1 → L, 2 → R (2026-11-08); 0 → Couple, kopierar aktiv motor till den andra (2026-11-09). Enheten sänder 1/2 vid tryck på ENGINE L/R |
 | 13 | Frequency | 20 Hz..20 kHz | 0..30 (31 steg, troligen 1/3-oktav) | 4 → "50" i displayen (2026-11-08); ISO-index 20,25,31.5,40,50 |
-| 14 | Fine (1/60 okt) | −9..+10 | 0..19 | Enheten sänder CC 14 vid vridning (2026-11-08); mottagning ej avläst |
+| 14 | Fine (1/60 okt) | −9..+10 | 0..19 | Sänds vid vridning (2026-11-08); 14 → +5 (2026-11-09) |
 | 15 | Bandwidth | 1..120 | 0..119 | 0 → 1, 11 → 12 (2026-11-08) |
 | 16 | Gain (dB) | −48..+16 | 0..64 | 64 → +16, 36 → −12 (2026-11-08) |
-| 17 | Feedback Sensitivity | −3..−9 | 0..6 | – |
-| 18 | Store | 1..10 | 0..9 | Nej: ingen ändring syntes i dumparna (m00–m03), se SysEx-avsnittet |
-| 19 | In/Out | – | 0..2 | – |
+| 17 | Feedback Sensitivity | −3..−9 | 0..6 | **Omvänd ordning:** 6 → −3, 0 → −9, alltså `värde = dB + 9` (2026-11-09) |
+| 18 | Store | 1..10 | 0..9 | 8 → program 9 sparat, STORE slutar blinka, syns i dumpen (2026-11-09, `S`=1) |
+| 19 | In/Out | – | 0..2 | 2 → lyser, 1 → släckt, 0 → blinkar (2026-11-09) |
 
 LED-kolumnen i manualen: Engine 0/1/2 ↔ Couple/Left/Right; In/Out 2 = IN on,
 1 = IN off, 0 = IN flashing. Enligt manualen kap. 4 (punkt 14) betyder släckt LED att
 de parametriska filtren är bypassade, och blinkande LED Total Bypass (alla filter av).
-Alltså 2 = aktiv, 1 = PA-bypass, 0 = total bypass. Det är manualens uppgift, inte provat.
+Alltså 2 = aktiv, 1 = PA-bypass, 0 = total bypass. Lamporna provade 2026-11-09, ljudet inte.
 
 Couple: manualen (kap. 4, punkt 9) säger att när man byter till Couple kopieras den aktiva
 motorns parametrar till den andra. Att skicka `CC 12 = 0` kan alltså skriva över den andra
-motorn helt. Ej provat via MIDI.
+motorn helt. **Provat 2026-11-09:** höger filter 1 var OF; efter `CC 12 = 0`, `CC 12 = 2` visade
+den 1.00 kHz och −6 dB som vänster. Ur Couple kom enheten inte med en ENGINE-knapp, men
+väl med `CC 12 = 1`.
 
 Antaganden att testa:
 - Gain: `värde = dB + 48` (65 steg, 1 dB/steg).
@@ -211,21 +213,25 @@ STORE-knappen:
 - Två dumpar utan ändring emellan (`a01`, `a02`) är identiska → dumpen är stabil.
 - `a00` (före första sparning i program 9) skiljer sig från `a01` i 92 uppackade byte: det är
   platsens gamla innehåll mot första sparningen, inte en gain-ändring.
+- **Bekräftat 2026-11-09 (`b01`):** bara vänster filter 1 ändrades (1 kHz, fine +5, bw 20, −6 dB).
+  Värdena hittades på råbyte 878 bit 1 (8882, 19, 42), medan 933–936 var oförändrade.
+  **878 bit 1 = vänster motor filter 1, 933 = höger motor filter 1.** I a-serien var programmet i
+  Couple, därför ändrades båda. Samtidigt ändrades enskilda bitar i 877, 896, 914, 932, 950, 969
+  (≈18 byte isär) och byte 1155 (0 → 48); okänt vad de är.
 - **Rättat 2026-11-08:** 878–882 är *inte* beräknade koefficienter. Läser man råbyte 933–936
   som en 28-bitars bitström (frekvens 14, bw 7, gain 7 bitar) och förskjuter den en bit, får
   man exakt råbyte 878–882 (bit 6 i 878 och de låga 6 bitarna i 882 hör till grannfälten).
   T.ex. `881 = ((bw & 1) << 6) | (gain >> 1)`: bw-byte 21 → bit 6 = 1, gain 42 → 21. Det
   tidigare "motbevisandet" av bit 6 blandade ihop paritet (antal ettor) med minst signifikant bit.
   Kontrollerat med ett skript mot alla 19 dumpar: inga avvikelser.
-- Kopian börjar 384 bitar (= 12 × 32) före originalet. Hypotes: den andra motorns filter 1
-  (programmet var troligen i Couple, så båda ändrades). Ej verifierat. Det betyder också att
+- Vänster ligger 384 bitar (= 12 × 32) före höger: troligen 12 filter × 32 bitar per motor. Det betyder också att
   poster kanske inte ligger på jämna råbyte utan är bitpackade, så "poster på 32 × k" ovan
   gäller bara den här platsen.
 
 ## Saknas
 - SysEx-format: gain, frekvens, fine, bandbredd och en lägesbit hittade för ett filter (se ovan); resten är oavkodat
-- Om enheten sänder CC 12/10 när man byter motor/filter på frontpanelen (vid vridning har bara själva parametern setts)
-- CC 17 (riktning −3..−9 ↔ 0..6), CC 19, CC 12 = 0 och CC 18 mot enheten
+- Vad de övriga bitarna i dumpen är (läge SI/AU, känslighet, In/Out, de andra filtren)
+- Om enheten tar emot en dump (`d` = 1) och om den kräver något utöver fälten
 - Exakt bandwidth-enhet
 
 ## Testlogg
@@ -248,3 +254,16 @@ bandbredd 60 / gain 0 på avläsningen, trots att CC 13 kom fram. Misstänkt ors
 tappade meddelanden vid snabb sändning, eller att ENGINE L+R trycktes ihop
 (Couple kopierar aktiv motors värden till den andra). Använd ≥300 ms mellan CC
 tills det är utrett.
+
+### Testserie 2026-11-09 (lyssnare + numrerade steg, se `docs/metod.md`)
+
+| Skickat | Avläst på enheten / i loggen | Slutsats |
+|---------|------------------------------|----------|
+| – (ENGINE L/R, FILTER SELECT + jog) | loggen: `CC 12 = 1/2`, `CC 10 = 1, 0` | Enheten sänder motor- och filterbyte |
+| – (FREQUENCY, GAIN-knapp) | inget i loggen | Bara knapptryck sänder inget |
+| `CC 12 = 1` (enheten i Couple) | bara L lyser | CC 12 tar enheten ur Couple, det gjorde inte ENGINE-knapparna |
+| `12=1 10=0 11=1 13=17 14=14 15=19 16=42` | filter 1, 1.00, +5, 20, −6 | Hela filtersekvensen tas emot rätt |
+| `CC 19 = 1 / 0 / 2` | IN/OUT släckt / blinkar / lyser | Som manualen |
+| `CC 17 = 6`, sedan `0` | −3, sedan −9 | Skalan är omvänd mot antagandet |
+| `CC 18 = 8` (`S` = 1) | STORE slutar blinka; dump `b01` visar värdena | CC 18 sparar |
+| `CC 12 = 0`, `CC 12 = 2` | höger filter 1: 1.00, −6 (var OF) | Couple kopierar aktiv motor till den andra |

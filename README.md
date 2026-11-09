@@ -44,9 +44,9 @@ Panelen kan inte läsa av enheten. Den visar det du senast skickat, inte vad som
 
 ## Begränsningar
 
-- **Couple** kan skriva över den andra motorn helt (enligt manualen). Använd Vänster/Höger.
-- **Spara hit (CC 18)** har inte fungerat i våra försök. Spara med knapparna på enheten.
-- In/Out och feedback-känslighet följer manualen men är inte provade.
+- **Couple** kopierar hela den aktiva motorn till den andra (provat). Använd Vänster/Höger om du inte vill det.
+- **Spara hit (CC 18)** fungerar bara med `S` = 1, och `S` nollställs varje gång enheten startas.
+- In/Out provat mot lamporna, inte mot ljudet.
 - EQ-kurvan är beräknad med en vanlig peak-EQ, inte mätt på enheten.
 - Panelen väntar 300 ms mellan meddelanden. Snabbare än så tappade enheten värden.
 
@@ -60,6 +60,8 @@ Panelen kan inte läsa av enheten. Den visar det du senast skickat, inte vad som
 | `test.js` | `node test.js` kontrollerar mappningen mot värden uppmätta på enheten |
 | `docs/midi.md` | protokollet: manualens tabell, vad som är verifierat, SysEx-avkodning |
 | `docs/dumps/` | fångade SysEx-dumpar (`.syx`) som avkodningen bygger på |
+| `docs/metod.md` | arbetssättet för att utforska en MIDI-pryl steg för steg, fungerar för andra prylar |
+| `tools/` | `midilog.py` (lyssnare som loggar allt och sparar SysEx) och `midisend.py` (sändare) |
 
 ## Lokalt
 

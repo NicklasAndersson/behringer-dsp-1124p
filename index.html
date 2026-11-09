@@ -18,8 +18,8 @@
 </style>
 <h1>DSP1124P</h1>
 <p class=warn>Skrivande panel: enheten kan inte läsas av ännu, så värdena visar det vi senast skickat
-(och det enheten sänder när du vrider på den, om MIDI IN är inkopplad, men bara efter att enheten själv
-sänt motor och filter, CC 12/10; vid vridning har vi bara sett den sända själva parametern).
+(och det enheten sänder när du vrider på den, om MIDI IN är inkopplad: enheten sänder CC 12/10 när du byter
+motor/filter och parametern när du vrider, men inte när du bara trycker en parameterknapp).
 Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
 
 <fieldset><legend>Anslutning</legend>
@@ -33,9 +33,8 @@ Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
   <label><input type=radio name=eng value=1 checked> Vänster</label>
   <label><input type=radio name=eng value=2> Höger</label>
   <label><input type=radio name=eng value=0> Couple (båda)</label>
-  <small class=warn>Couple (CC 12 = 0): enligt manualen kopierar enheten <i>hela</i> den aktiva motorns
-  inställningar till den andra när man byter till Couple. Panelen kopierar bara den parameter du skickar,
-  så den andra motorns värden i panelen kan bli fel.</small>
+  <small class=warn>Couple (CC 12 = 0) kopierar <i>hela</i> den aktiva motorns inställningar till den andra
+  (provat 2026-11-09). Panelen kopierar bara den parameter du skickar, så den andra motorns värden i panelen kan bli fel.</small>
 </fieldset>
 
 <canvas id=curve width=860 height=220 style="width:100%;border:1px solid var(--line);border-radius:6px"></canvas>
@@ -47,10 +46,10 @@ Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
 <fieldset><legend>Program och global</legend>
   Program <select id=prog></select>
   <button id=recall>Hämta (PC)</button>
-  <button id=store title="Kräver S=1 på enheten (nollställs vid uppstart). Overifierat: i våra mätningar syntes ingen effekt.">Spara hit (CC 18, overifierat)</button>
+  <button id=store title="Kräver S=1 på enheten (nollställs vid varje uppstart)">Spara hit (CC 18, kräver S=1)</button>
   | In/Out <select id=io>
-    <option value=2>Aktiv</option><option value=1>Parametrisk bypass (antaget)</option>
-    <option value=0>Total bypass (antaget)</option></select><button id=sendio>Skicka</button>
+    <option value=2>Aktiv</option><option value=1>Parametrisk bypass</option>
+    <option value=0>Total bypass</option></select><button id=sendio>Skicka</button>
   | Feedback-känslighet <select id=fb></select><button id=sendfb>Skicka</button>
 </fieldset>
 
@@ -92,7 +91,7 @@ function setParam(f, param, userVal, skipSelect) {
   const v = DSP.toCC(param, userVal);
   if (Number.isNaN(v)) return log(`Ogiltigt värde för ${param}`);
   const e = +document.querySelector('input[name=eng]:checked').value;
-  if (!skipSelect) { cc(DSP.CC.engine, e); cc(DSP.CC.filter, f); }
+  if (!skipSelect) { cc(DSP.CC.engine, e); cc(DSP.CC.filter, f); ptr.e = e; ptr.f = f; }   // enhetens pekare följer CC 12/10
   cc(DSP.CC[param], v);
   for (const m of e ? [e] : [1, 2]) state[m][f][param] = DSP.dec[param](v);
   render();                                               // visar klämt värde om det justerats
@@ -155,7 +154,7 @@ for (let i = 1; i <= 10; i++) $('prog').add(new Option(i, i - 1));
 for (let s = -3; s >= -9; s--) $('fb').add(new Option(s + ' dB', s));
 $('recall').onclick = () => pc(+$('prog').value);
 $('store').onclick = () => {
-  if (confirm(`Skriv över program ${+$('prog').value + 1} med enhetens nuvarande inställningar?`)) cc(DSP.CC.store, +$('prog').value);
+  if (confirm(`Skriv över program ${+$('prog').value + 1} med enhetens nuvarande inställningar? (Kräver S=1 på enheten.)`)) cc(DSP.CC.store, +$('prog').value);
 };
 $('sendio').onclick = () => cc(DSP.CC.inout, +$('io').value);
 $('sendfb').onclick = () => cc(DSP.CC.fb, DSP.enc.fb(+$('fb').value));

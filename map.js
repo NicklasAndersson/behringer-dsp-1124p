@@ -4,9 +4,9 @@ const DSP = {
         1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000],
   CC: { engine: 12, filter: 10, mode: 11, freq: 13, fine: 14, bw: 15, gain: 16, fb: 17, store: 18, inout: 19 },
   MODES: ['OF', 'PA', 'AU', 'SI'],
-  // användarvärde -> CC-värde (verifierat mot enheten utom fb/inout)
-  enc: { mode: m => m, freq: i => i, fine: f => f + 9, bw: b => b - 1, gain: db => db + 48, fb: s => -3 - s },
-  dec: { mode: v => v, freq: v => v, fine: v => v - 9, bw: v => v + 1, gain: v => v - 48, fb: v => -3 - v },
+  // användarvärde -> CC-värde (verifierat mot enheten; fb: CC 17=6 → −3, 0 → −9, 2026-11-09)
+  enc: { mode: m => m, freq: i => i, fine: f => f + 9, bw: b => b - 1, gain: db => db + 48, fb: s => s + 9 },
+  dec: { mode: v => v, freq: v => v, fine: v => v - 9, bw: v => v + 1, gain: v => v - 48, fb: v => v - 9 },
   MAX: { mode: 3, freq: 30, fine: 19, bw: 119, gain: 64, fb: 6 },
   fmtHz: hz => hz >= 1000 ? hz / 1000 + ' kHz' : hz + ' Hz',
 };

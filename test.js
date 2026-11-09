@@ -8,6 +8,7 @@ assert.strictEqual(D.enc.gain(16), 64);                 // CC16=64 -> +16 dB
 assert.strictEqual(D.enc.bw(12), 11);                   // CC15=11 -> 12
 assert.strictEqual(D.enc.bw(1), 0);                     // CC15=0  -> 1
 assert.strictEqual(D.enc.fine(0), 9);                   // 9 = 0 offset
+assert.strictEqual(D.enc.fb(-3), 6); assert.strictEqual(D.enc.fb(-9), 0);   // CC 17 uppmätt 2026-11-09
 for (const k in D.MAX)                                  // enc/dec är varandras invers
   for (let v = 0; v <= D.MAX[k]; v++) assert.strictEqual(D.enc[k](D.dec[k](v)), v, k + ' ' + v);
 assert.strictEqual(D.toCC('bw', 0), 0);                  // klämning: aldrig utanför 0..MAX
