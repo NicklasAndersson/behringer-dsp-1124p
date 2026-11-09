@@ -34,4 +34,9 @@ assert.strictEqual(D.parseDump(dump('d00-aktivt-program-1.syx')).active, 1);
 assert.deepStrictEqual(D.parseDump(dump('b01-L-f1-1k-fine5-bw20-g-6.syx')).programs[8][0][0], { mode: 1, freq: 17, fine: 5, bw: 20, gain: -6 });
 assert.deepStrictEqual(['g00-lage-OF-p10-L12', 'g01-lage-AU-p10-L12', 'g02-lage-SI-p10-L12'].map(n => D.parseDump(dump(n + '.syx')).programs[9][0][11].mode), [0, 2, 3]);
 assert.strictEqual(D.parseDump([0xF0, 0xF7]), null);
+const rs = D.resetProgram(8);                                     // program 9 (index 8)
+assert.deepStrictEqual(rs[0], ['pc', 8]); assert.deepStrictEqual(rs[rs.length - 1], ['cc', 18, 8]);
+assert.strictEqual(rs.filter(m => m[0] === 'cc' && m[1] === 10).length, 24);   // 12 filter x 2 motorer
+assert(rs.every(m => m[0] !== 'cc' || (m[2] >= 0 && m[2] <= 127)));
+assert.deepStrictEqual(rs.slice(3, 10), [['cc', 10, 0], ['cc', 11, 1], ['cc', 13, 14], ['cc', 14, 9], ['cc', 15, 59], ['cc', 16, 48], ['cc', 11, 0]]);
 console.log('ok');

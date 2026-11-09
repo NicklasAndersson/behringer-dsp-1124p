@@ -13,6 +13,7 @@
   td input[type=range]{width:9rem;vertical-align:middle}
   td input[type=number]{width:4rem}
   .warn{color:#b60}
+  details{border-bottom:1px solid var(--line);padding:.2rem 0} summary{cursor:pointer} .all td{font-size:12px;padding:.1rem .3rem} .dim{opacity:.5}
   #log{height:140px;overflow:auto;font:12px ui-monospace,monospace;white-space:pre-wrap;border:1px solid var(--line);padding:.4rem}
   @media(max-width:640px){td,th{padding:.2rem}}
 </style>
@@ -55,6 +56,10 @@ Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
   | Feedback-känslighet <select id=fb></select><button id=sendfb>Skicka</button>
 </fieldset>
 
+<fieldset><legend>Alla program (senaste läsningen)</legend>
+  <div id=all><small>Tryck <b>Läs från enheten</b> för att visa alla tio program.</small></div>
+</fieldset>
+
 <button id=clr>Rensa logg</button>
 <div id=log></div>
 
@@ -77,7 +82,8 @@ const q = []; let busy = false;
 async function pump() {
   if (busy) return; busy = true;
   while (q.length) {
-    const m = q.shift(); if (m[0] < 0xF0) m[0] |= +$('ch').value - 1;
+    const m = q.shift(); if (typeof m === 'number') { await sleep(m); continue; }
+    if (m[0] < 0xF0) m[0] |= +$('ch').value - 1;
     try { out.send(m); log('UT ' + (m[0] === 0xF0 ? 'sysex begäran' : m.length > 2 ? `cc ${m[1]} = ${m[2]}` : `pc ${m[1]}`)); }
     catch (e) { log('Fel vid sändning: ' + e.message); }   // utan detta fastnar busy=true
     await sleep(+$('delay').value);
@@ -165,12 +171,34 @@ $('sendfb').onclick = () => cc(DSP.CC.fb, DSP.enc.fb(+$('fb').value));
 $('clr').onclick = () => $('log').textContent = '';
 
 // --- MIDI in: enhetens egna vridningar uppdaterar pekare och värden
+const isDef = f => f.mode === 1 && f.freq === 14 && f.fine === 0 && f.bw === 60 && f.gain === 0;   // standardfilter (docs/midi.md)
+const fl = f => `${DSP.MODES[f.mode]} ${DSP.fmtHz(DSP.ISO[f.freq] ?? '?')}${f.fine ? ' ' + (f.fine > 0 ? '+' : '') + f.fine : ''} · ${f.bw} · ${f.gain > 0 ? '+' : ''}${f.gain} dB`;
+function renderAll(r) {
+  const box = $('all'); box.innerHTML = '';
+  r.programs.forEach((pr, p) => {
+    const used = pr.flat().filter(f => !isDef(f) && !(f.mode === 0 && f.freq === 14 && f.fine === 0 && f.bw === 60 && f.gain === 0)).length;
+    const d = document.createElement('details');
+    d.innerHTML = `<summary><b>Program ${p + 1}</b>${p + 1 === r.active ? ' (aktivt)' : ''} – ${used ? used + ' av 24 filter ändrade' : 'tomt/standard'}</summary>
+      <table class=all><tr><th>#<th>Vänster (läge, frekvens · bw · gain)<th>Höger</tr>${
+      Array.from({ length: 12 }, (_, k) => `<tr><td>${k + 1}<td class="${pr[0][k].mode === 0 ? 'dim' : ''}">${fl(pr[0][k])}<td class="${pr[1][k].mode === 0 ? 'dim' : ''}">${fl(pr[1][k])}`).join('')}</table>
+      <button data-reset=${p}>Nollställ program ${p + 1}</button>`;
+    box.append(d);
+  });
+}
+$('all').addEventListener('click', e => {
+  const p = e.target.dataset.reset; if (p === undefined) return;
+  if (!out) return log('Inte ansluten');
+  if (!confirm(`Nollställ program ${+p + 1}? Alla 24 filter blir OF, 500 Hz, fine 0, bandbredd 60, 0 dB och programmet sparas över (CC 18, kräver S=1). Det tar ca 1 minut och enheten byter till programmet.`)) return;
+  for (const [k, a, b] of DSP.resetProgram(+p)) k === 'pc' ? send([0xC0, a]) : k === 'cc' ? cc(a, b) : q.push(a);
+  ptr.e = ptr.f = null;
+  if (input) { q.push(1000); readDev(); }                // läs om så att resultatet syns
+});
 function onDump(d) {
   const r = DSP.parseDump(d); if (!r) return log(`IN sysex ${d.length} B (okänt)`);
   for (const m of [1, 2]) state[m] = r.programs[r.active - 1][m - 1].map(f => ({ ...f }));
   $('prog').value = r.active - 1; $('io').value = r.inout; $('fb').value = r.fb - 9; ptr.e = ptr.f = null; render();
   $('readstat').textContent = `läste program ${r.active} kl. ${new Date().toLocaleTimeString()}`;
-  log(`IN dump: aktivt program ${r.active}`);
+  renderAll(r); log(`IN dump: aktivt program ${r.active}`);
 }
 function onMsg(ev) {
   if (ev.data[0] === 0xF0) return onDump(ev.data);

@@ -42,4 +42,17 @@ DSP.parseDump = d => {
   // inout/fb är CC 19/CC 17-värden. c, omni, C, P = MIDI-menyn. okand = byte 2 (3 nu, 0 i äldre dumpar, orsak okänd).
   return { active: g(0), inout: (g(1) + 1) % 4, fb: g(3), c: g(4), omni: g(5), C: g(6), P: g(7), okand: g(2), programs };
 };
+// Nollställ ett helt program (0..9): alla 24 filter OF, 500 Hz, fine 0, bw 60, 0 dB, sedan spara (CC 18, kräver S=1).
+// Värdena sätts i PA och läget OF sist (OF kan spärra redigering). -> lista av ['pc', p] | ['cc', n, v] | ['delay', ms].
+DSP.resetProgram = p => {
+  const m = [['pc', p], ['delay', 1500]], C = DSP.CC;
+  for (const e of [1, 2]) {
+    m.push(['cc', C.engine, e]);
+    for (let f = 0; f < 12; f++)
+      m.push(['cc', C.filter, f], ['cc', C.mode, 1], ['cc', C.freq, DSP.toCC('freq', 14)], ['cc', C.fine, DSP.toCC('fine', 0)],
+             ['cc', C.bw, DSP.toCC('bw', 60)], ['cc', C.gain, DSP.toCC('gain', 0)], ['cc', C.mode, 0]);
+  }
+  m.push(['cc', C.engine, 1], ['cc', C.store, p]);
+  return m;
+};
 if (typeof module !== 'undefined') module.exports = DSP;
