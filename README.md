@@ -61,7 +61,7 @@ Vägen dit, i ordning:
    avkodas (`filters()` i `sysex.py`, layout i `docs/midi.md`). Kvar: läge SI/AU, program 1–8
    (antaget samma avstånd) och en oförklarad bit.
 2. **Få enheten att dumpa från panelen.** *Klart:* SysEx `F0 00 20 32 00 08 4F F7` ger hela minnet
-   (`docs/midi.md`). Kvar: om det kräver `d` = 2.
+   (`docs/midi.md`). Kräver inte `d` = 2 (provat med `d` = 0).
 3. **Bygga om panelen** så att tabellen fylls från dumpen. Ändringar skickas som CC (som nu), och
    `CC 18` sparar.
 

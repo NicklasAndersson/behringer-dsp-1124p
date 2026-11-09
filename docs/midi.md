@@ -322,5 +322,6 @@ Mönster: **svarskommando = begäran utan bit 6** (`4F` → `0F`, `40` → `00`,
 iakttagelse från fyra träffar, inte ur manualen. 00–3F och 41–43, 46–4E, 50–7F gav inget svar. Inget
 skickat innehåll har skrivit något i enheten, men enheten stod på `d` = 2 under hela testet.
 Ett kort blink på IN/OUT-lampan syns vid varje mottaget SysEx, även när enheten inte svarar.
-Oklart ännu: om `d` måste vara 2, och vad `40`, `44` och `45` betyder. Panelen kan alltså **läsa enheten utan att
+**`d` behöver inte vara 2:** efter testet stod `d` på 0 i menyn (den nollställs efter dump), och `4F` gav ändå en full
+dump kl. 09:30:01. Oklart ännu: vad `40`, `44` och `45` betyder. Panelen kan alltså **läsa enheten utan att
 någon trycker STORE**, med `F0 00 20 32 00 08 4F F7`.
