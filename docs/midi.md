@@ -463,7 +463,7 @@ Prov med jämn signal: grundläget lästes av som ca **−20 dB** på L-stapeln,
 
 - **L-nivå = `byte0·128 + byte1`** (13 bitar), linjär amplitud där **8191 = 0 dB (fullt utslag)**. Stämmer med displayen på två punkter.
 - Byte 4 (multiplar av 8) och bitarna `0x20`/`0x40` i byte 2 flimrar även i tystnad och är sannolikt lägre bitar eller brus. Inte tolkade.
-- **R-nivå:** Nicklas bedömer att R är uppbyggd exakt som L. Det är **inte mätt**. Hypotes från tidigare prov: byte 2 (låga fem bitar) och byte 3,
+- **R-nivå:** Nicklas bedömde att R är uppbyggd som L. Skalan är korrigerad längst ned (×4). Hypotes från tidigare prov: byte 2 (låga fem bitar) och byte 3,
   alltså `(byte2 & 0x1f)·128 + byte3`. Ett R-prov med ljud på bara höger ingång återstår. Försöket med R-filter +16 dB gav byte 2 med 4–13 i de låga bitarna,
   vilket stämmer med att de hör till R.
 - Mätaren ligger efter filtren (jämför ovan), så den visar utsignalen.
@@ -471,5 +471,4 @@ Prov med jämn signal: grundläget lästes av som ca **−20 dB** på L-stapeln,
 
 **R-skala (2026-11-09, 25 prov med musik på båda ingångarna):** `(byte2 & 0x1f)·128 + byte3` låg konstant på ca en fjärdedel av
 `byte0·128 + byte1` (0,24–0,27, till exempel L 2428 ↔ R 606, L 1929 ↔ R 482). Panelens R-stapel visade därför ca 12 dB för lågt.
-Tolkning (hypotes, ej bevisad mot displayen eller med signal på bara höger ingång): R-fältet har skala 2047 = 0 dB, så panelen multiplicerar med 4.
-Alternativet är att källan verkligen är 12 dB svagare på höger ingång, och då ska faktorn bort.
+R-fältet har skala 2047 = 0 dB, så panelen multiplicerar med 4. **Bekräftat av Nicklas 2026-11-09:** efter ändringen stämmer R-stapeln i panelen med displayen (musik, inte jämn ton på bara höger ingång).
