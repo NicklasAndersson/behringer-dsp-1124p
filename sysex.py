@@ -26,6 +26,19 @@ def load(path):  # -> (header[7], dekodad payload)
     assert d[0] == 0xF0 and d[-1] == 0xF7 and max(d[1:-1]) < 128, 'inte ett SysEx-meddelande'
     return d[:7], dec78(d[7:-1])
 
+def filters(path):  # -> {(program 1-10, motor 0=V/1=H, filter 1-12): (läge PA?, ISO-index, fine, bw, gain dB)}
+    # Råa 7-bitsbyte, 32 bitar per filter: frekvens 14 (bit 13 = PA, LSB oanvänd), bw-1 7, gain+48 7, 4 bitar noll.
+    # ponytail: program 1-10 antas ligga på samma avstånd (768 bitar), bara 9 och 10 kontrollerade.
+    d = open(path, 'rb').read(); bits = ''.join(f'{b:07b}' for b in d[7:-1]); out = {}
+    for p in range(10):
+        for e in range(2):
+            for k in range(12):
+                s = 3 + 768 * p + 384 * e + 32 * k
+                u = int(bits[s:s + 14], 2); u2 = (u & 8191) >> 1; r = u2 % 20
+                idx, fine = (u2 // 20 + 1, r - 20) if r > 10 else (u2 // 20, r)
+                out[p + 1, e, k + 1] = (bool(u >> 13), idx, fine, int(bits[s + 14:s + 21], 2) + 1, int(bits[s + 21:s + 28], 2) - 48)
+    return out
+
 if __name__ == '__main__' and sys.argv[1:2] == ['diff']:  # python3 -I sysex.py diff a.syx b.syx
     a, b = load(sys.argv[2])[1], load(sys.argv[3])[1]
     for i in range(min(len(a), len(b))):
@@ -42,4 +55,9 @@ elif __name__ == '__main__':
     q = p('q01-after-gain40.syx')[1]
     assert [i for i in range(1029) if q[i] != m0[i]] == [1010] and (m0[1010], q[1010]) == (0x20, 0)
     assert tz(b'') == 0xbf
+    c = filters(os.path.join(D, 'c01-alla-filter-p10.syx'))  # testvärden från 2026-11-09, se docs/midi.md
+    for k in range(12):
+        assert c[10, 0, k + 1] == (True, 2 * k + 3, k + 2 - 9, 11 + 7 * k, 20 + 3 * k - 48), k
+        assert c[10, 1, k + 1] == (True, 29 - 2 * k, 19 - k - 9, 101 - 7 * k, 60 - 3 * k - 48), k
+    assert filters(os.path.join(D, 'b01-L-f1-1k-fine5-bw20-g-6.syx'))[9, 0, 1] == (True, 17, 5, 20, -6)
     print('ok')

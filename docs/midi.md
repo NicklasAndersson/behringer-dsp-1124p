@@ -186,7 +186,9 @@ jämfört. Praktiskt: `d` återställs till 0 efter varje dump och måste sätta
 Slutsats i efterhand (2026-11-08): a-serien, sparad med STORE-*knappen*, ändrade dumpen
 varje gång. m-serien, sparad med `CC 18`, ändrade den aldrig. Det tyder på att `CC 18` inte
 sparade, inte på att fälten ligger någon annanstans. Orsaken är okänd (kanske `S`, kanske
-programnumret). Panelens spara-knapp (CC 18) är därför overifierad.
+programnumret). ~~Panelens spara-knapp (CC 18) är därför overifierad.~~
+**Löst 2026-11-09:** `CC 18` sparar på både program 9 och 10 när `S` = 1 (se testserien nedan). m-seriens
+misslyckande hade alltså en annan orsak, troligen att `S` var 0 (nollställs vid start).
 
 ### Avkodat: gain och frekvens (2026-11-08, `dumps/a00..a13`)
 
@@ -267,3 +269,39 @@ tills det är utrett.
 | `CC 17 = 6`, sedan `0` | −3, sedan −9 | Skalan är omvänd mot antagandet |
 | `CC 18 = 8` (`S` = 1) | STORE slutar blinka; dump `b01` visar värdena | CC 18 sparar |
 | `CC 12 = 0`, `CC 12 = 2` | höger filter 1: 1.00, −6 (var OF) | Couple kopierar aktiv motor till den andra |
+
+### Mätserie CC 18, 2026-11-09 (lyssnare i bakgrunden, `S` = 1, `c`=1, `C`=3, `P`=3)
+
+Utan dump: osparade ändringar avläses efter byte av program (`pc=0`, sedan tillbaka).
+
+| Skickat | Avläst på enheten | Slutsats |
+|---------|-------------------|----------|
+| `pc=8`, filter 1 L: 200 Hz, fine 0, bw 12, −12 dB | stämmer, STORE blinkar | Osparat arbetsminne |
+| `CC 18 = 8` | STORE släckt; efter `pc=0`, `pc=8` kvar | Program 9 sparat |
+| `pc=9`, filter 1 L: 2 kHz, fine +5, bw 30, −6 dB | stämmer, STORE blinkar | Osparat arbetsminne |
+| `CC 18 = 9` | STORE släckt; efter `pc=0`, `pc=9` kvar | Program 10 sparat |
+| `CC 16 = 30` (utan CC 18), sedan `pc=0`, `pc=9` | −18, STORE blinkar; efter programbyte −6, STORE släckt | Programbyte kastar osparat och laddar från minnet, så testet ovan är ett bevis |
+
+**Slutsats:** `CC 18` = programnummer − 1 sparar aktuellt arbetsminne dit, för program 9 och 10 med `S` = 1.
+Ej provat: `S` = 0 igen i samma serie, program 1–8.
+
+### Avkodat: alla filter, alla motorer (2026-11-09, `dumps/c01-alla-filter-p10.syx`)
+
+Program 10 fylldes via MIDI med 24 unika filter (alla PA, olika frekvens, fine, bandbredd och gain),
+sparades med `CC 18 = 9` och dumpades med STORE-knappen (`d` = 2). Sedan söktes mönstren på bitnivå.
+
+**Layout (råa 7-bitsbyte i payloaden efter 7-bytesrubriken, räknat i bitar från payloadens början):**
+
+`bit = 3 + 768·(program−1) + 384·motor + 32·(filter−1)`, motor 0 = vänster, 1 = höger.
+
+Varje filter är 32 bitar: frekvens 14 (bit 13 = läge PA, sista biten oanvänd), bandbredd−1 7, gain+48 7, 4 bitar noll.
+Frekvensfältet är `40·ISO-index + 2·fine` (fine −9..+10). 24 av 24 filter stämmer mot det som skickades.
+Kontrolleras av `python3 -I sysex.py` (`filters()`).
+
+- Stämmer med det gamla fyndet: program 9, vänster, filter 1 ligger på råbyte 878 bit 1 (`b01`).
+- Ett program är 768 bitar (24 × 32). Program 9 och 10 är verifierade, 1–8 antas ligga på samma avstånd.
+- **Sista biten i frekvensfältet** var satt (1) i filter 1, 5 och 9 på båda motorerna och 0 i resten. Den
+  ändrar inget som displayen visar. Orsak okänd, avkodaren ignorerar den.
+- Kvar efter programblocken: ca 549 bitar (3 + 10·768 = 7683 av 8232) som inte är tolkade. Läge SI/AU ej mätta.
+- STORE-knappen med `d` = 2 gav `CC 18 = 9` följt av en dump. `CC 18` från panelen utlöste ingen dump.
+  Första STORE-trycket (09:14:50) gav bara `CC 18`, ingen dump. Varför är oklart.

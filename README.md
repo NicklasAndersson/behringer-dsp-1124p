@@ -37,7 +37,8 @@ Inställningarna sparas i enheten, utom `S`, som nollställs varje gång enheten
 2. Välj motor (Vänster / Höger).
 3. Ändra ett värde i tabellen. Det skickas när du släpper reglaget. **Skicka filter**
    skickar alla värden för raden.
-4. Ändringar hamnar i enhetens arbetsminne (STORE-lampan blinkar). Spara på enheten:
+4. Ändringar hamnar i enhetens arbetsminne (STORE-lampan blinkar). Spara med knappen
+   **Spara hit** (`CC 18`, verifierat 2026-11-09 på program 9 och 10), eller på enheten:
    tryck **STORE**, välj program med jog-hjulet och tryck **STORE** igen.
 
 Panelen kan inte läsa av enheten. Den visar det du senast skickat, inte vad som finns i programmet.
@@ -49,6 +50,20 @@ Panelen kan inte läsa av enheten. Den visar det du senast skickat, inte vad som
 - In/Out provat mot lamporna, inte mot ljudet.
 - EQ-kurvan är beräknad med en vanlig peak-EQ, inte mätt på enheten.
 - Panelen väntar 300 ms mellan meddelanden. Snabbare än så tappade enheten värden.
+
+## Mål och nästa steg
+
+Målet är att panelen ska **matcha enheten**: man ser vad som är satt i alla 12 filter på båda
+motorerna och kan ändra det. Idag skickar panelen bara, den kan inte läsa.
+
+Vägen dit, i ordning:
+1. **Läsa programmet via SysEx-dumpen.** *Klart för PA-filter:* alla 12 filter på båda motorerna
+   avkodas (`filters()` i `sysex.py`, layout i `docs/midi.md`). Kvar: läge SI/AU, program 1–8
+   (antaget samma avstånd) och en oförklarad bit.
+2. **Få enheten att dumpa från panelen.** Idag krävs `d` = 2 och STORE-knappen, och `d` nollställs
+   efter varje dump. Okänt om en SysEx-förfrågan från panelen fungerar, det ska provas.
+3. **Bygga om panelen** så att tabellen fylls från dumpen. Ändringar skickas som CC (som nu), och
+   `CC 18` sparar.
 
 ## Filer
 
