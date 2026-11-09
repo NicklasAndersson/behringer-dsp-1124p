@@ -4,6 +4,14 @@ En webbsida som styr Behringer Feedback Destroyer Pro DSP1124P över MIDI: läge
 fine, bandbredd och gain för alla 2 × 12 filter, plus programbyte. Den visar också en
 beräknad EQ-kurva. Allt ligger i en enda HTML-fil, utan bygge och utan beroenden.
 
+**English:** A single-file web page that controls and reads a Behringer Feedback Destroyer Pro DSP1124P over Web MIDI:
+mode, frequency, fine, bandwidth and gain for all 2 × 12 filters, program change, store and reset, a calculated EQ curve,
+a live L/R level meter, and a read-out of all ten stored programs via SysEx. Needs Chrome or Edge and a MIDI interface.
+
+**Deutsch:** Eine einzelne Webseite, die einen Behringer Feedback Destroyer Pro DSP1124P über Web MIDI steuert und ausliest:
+Modus, Frequenz, Fine, Bandbreite und Gain für alle 2 × 12 Filter, Programmwechsel, Speichern und Zurücksetzen, eine berechnete
+EQ-Kurve, ein Live-Pegelmesser für L/R und das Auslesen aller zehn gespeicherten Programme per SysEx. Benötigt Chrome oder Edge und ein MIDI-Interface.
+
 **Öppna:** https://nicklasandersson.github.io/behringer-dsp-1124p/
 
 Kräver Chrome (eller Edge) och ett MIDI-interface. Läsningen från enheten (SysEx) fungerade inte i Firefox; Safari saknar Web MIDI.
@@ -41,37 +49,31 @@ Inställningarna sparas i enheten, utom `S`, som nollställs varje gång enheten
    **Spara hit** (`CC 18`, verifierat 2026-11-09 på program 9 och 10), eller på enheten:
    tryck **STORE**, välj program med jog-hjulet och tryck **STORE** igen.
 
-**Läs från enheten** (kräver In-port, frågar efter SysEx-tillstånd) hämtar hela minnet och visar det sparade
-programmet som är valt på enheten. Osparade ändringar (STORE-lampan blinkar) syns inte i läsningen.
+**Hämta allt från enheten** (kräver In-port, frågar efter SysEx-tillstånd) körs också automatiskt vid **Anslut**. Den hämtar
+alla tio sparade program, aktivt program, In/Out och feedback. Osparade ändringar (STORE-lampan blinkar) syns inte i läsningen.
+**Visa program** bläddrar bland de tio programmen utan att röra enheten; redigering går bara på det program som är aktivt på enheten.
+**Byt program på enheten (PC)** byter program på enheten. **Nollställ program** sätter alla 24 filter i valt program
+till OF, 500 Hz, fine 0, bandbredd 60, 0 dB och sparar (`CC 18`, kräver `S` = 1; tar ca 1 minut).
 **Nivå** (kryssrutan *Live-mätare*, kräver In-port) visar två staplar L och R med åtta segment som på displayen,
-efter filtren. Frågar enheten fem gånger i sekunden och bara när sändkön är tom. L är mätt mot displayen; **R är en hypotes** (antas vara byggd
-som L) som ska kontrolleras med en signal på bara höger ingång.
-**Alla program** visar alla tio program (fällbara block, bara läsning). **Nollställ program N** sätter alla 24 filter
-i programmet till OF, 500 Hz, fine 0, bandbredd 60, 0 dB och sparar (`CC 18`, kräver `S` = 1; tar ca 1 minut). Provat på
-enheten med dump efteråt, och sekvensen kontrolleras i `test.js`.
+efter filtren. Frågar enheten fem gånger i sekunden och bara när sändkön är tom.
 Efter läsningen följer panelen det du skickar och det enheten sänder.
 
 ## Begränsningar
 
-- **Couple** kopierar hela den aktiva motorn till den andra (provat). Använd Vänster/Höger om du inte vill det.
+- **Couple** kopierar hela den aktiva motorn till den andra, men panelen uppdaterar bara den parameter du skickar. Hämta från enheten efteråt.
 - **Spara hit (CC 18)** fungerar bara med `S` = 1, och `S` nollställs varje gång enheten startas.
 - In/Out provat mot lamporna, inte mot ljudet.
 - EQ-kurvan är beräknad med en vanlig peak-EQ, inte mätt på enheten.
 - Panelen väntar 300 ms mellan meddelanden. Snabbare än så tappade enheten värden.
 
-## Mål och nästa steg
+## Nästa steg
 
-Målet är att panelen ska **matcha enheten**: man ser vad som är satt i alla 12 filter på båda
-motorerna och kan ändra det. Idag skickar panelen bara, den kan inte läsa.
+- Couple: låt panelen kopiera hela motorn så att båda visas rätt.
+- Säkerhetskopia: spara alla tio program till en fil och skicka tillbaka dem till enheten (återställning går via CC, ca 1 minut per program).
+- Kopiera filter eller motor (vänster → höger) och programmet till ett annat programnummer.
+- Osparat arbetsminne kan inte läsas via MIDI; STORE-lampan är den enda indikationen.
 
-Vägen dit, i ordning:
-1. **Läsa programmet via SysEx-dumpen.** *Klart för PA-filter:* alla 12 filter på båda motorerna
-   avkodas (`filters()` i `sysex.py`, layout i `docs/midi.md`). Alla tio program och svansen (aktivt program, In/Out, feedback, MIDI-menyn)
-   är avkodade. Läge OF/PA/AU/SI är avkodat. Svansen är helt tolkad (feedback är per motor). Kvar: kommandona `40/44/45` och en markörbit per filtergrupp som är utredd men inte förstådd (ingen påverkan, se `docs/midi.md`).
-2. **Få enheten att dumpa från panelen.** *Klart:* SysEx `F0 00 20 32 00 08 4F F7` ger hela minnet
-   (`docs/midi.md`). Kräver inte `d` = 2 (provat med `d` = 0).
-3. **Bygga om panelen** så att tabellen fylls från dumpen. *Klart (provat i Chrome 2026-11-09, läsning av ett program):* knappen
-   **Läs från enheten**. Ändringar skickas som CC (som nu), och `CC 18` sparar.
+Protokollet och avkodningen av SysEx-dumpen står i `docs/midi.md`.
 
 ## Filer
 
