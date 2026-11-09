@@ -43,6 +43,9 @@ Inställningarna sparas i enheten, utom `S`, som nollställs varje gång enheten
 
 **Läs från enheten** (kräver In-port, frågar efter SysEx-tillstånd) hämtar hela minnet och visar det sparade
 programmet som är valt på enheten. Osparade ändringar (STORE-lampan blinkar) syns inte i läsningen.
+**Nivå** (kryssrutan *Live-mätare*, kräver In-port) visar två staplar L och R med åtta segment som på displayen,
+efter filtren. Frågar enheten fem gånger i sekunden och bara när sändkön är tom. L är mätt mot displayen; **R är en hypotes** (antas vara byggd
+som L) som ska kontrolleras med en signal på bara höger ingång.
 **Alla program** visar alla tio program (fällbara block, bara läsning). **Nollställ program N** sätter alla 24 filter
 i programmet till OF, 500 Hz, fine 0, bandbredd 60, 0 dB och sparar (`CC 18`, kräver `S` = 1; tar ca 1 minut). Provat på
 enheten med dump efteråt, och sekvensen kontrolleras i `test.js`.

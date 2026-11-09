@@ -14,6 +14,10 @@
   td input[type=number]{width:4rem}
   .warn{color:#b60}
   details{border-bottom:1px solid var(--line);padding:.2rem 0} summary{cursor:pointer} .all td{font-size:12px;padding:.1rem .3rem} .dim{opacity:.5}
+  .meter{display:flex;align-items:center;gap:.4rem;margin:.15rem 0}
+  .meter b{width:1rem}.meter output{width:5rem;font-variant-numeric:tabular-nums}
+  .seg{width:1.6rem;height:.9rem;border-radius:2px;background:#8883}
+  .seg.on{background:#2a7}.seg:nth-child(n+6).on{background:#db0}.seg:nth-child(8).on{background:#d33}
   #log{height:140px;overflow:auto;font:12px ui-monospace,monospace;white-space:pre-wrap;border:1px solid var(--line);padding:.4rem}
   @media(max-width:640px){td,th{padding:.2rem}}
 </style>
@@ -37,6 +41,14 @@ Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
   <label><input type=radio name=eng value=0> Couple (båda)</label>
   <small class=warn>Couple (CC 12 = 0) kopierar <i>hela</i> den aktiva motorns inställningar till den andra
   (provat 2026-11-09). Panelen kopierar bara den parameter du skickar, så den andra motorns värden i panelen kan bli fel.</small>
+</fieldset>
+
+<fieldset><legend>Nivå</legend>
+  <label><input type=checkbox id=meter> Live-mätare (kräver In-port)</label>
+  <div class=meter data-ch=L><b>L</b><span class=segs></span><output></output></div>
+  <div class=meter data-ch=R><b>R</b><span class=segs></span><output></output></div>
+  <small>Efter filtren, åtta segment som på displayen (−40, −30, −20, −15, −10, −6, −3, clip). L är mätt mot displayen.
+  <span class=warn>R är en hypotes</span> (antas vara byggd som L) och är inte kontrollerad.</small>
 </fieldset>
 
 <canvas id=curve width=860 height=220 style="width:100%;border:1px solid var(--line);border-radius:6px"></canvas>
@@ -160,7 +172,21 @@ document.querySelectorAll('input[name=eng]').forEach(r => r.onchange = render);
 // --- program, in/out, feedback
 for (let i = 1; i <= 10; i++) $('prog').add(new Option(i, i - 1));
 for (let s = -3; s >= -9; s--) $('fb').add(new Option(s + ' dB', s));
-const readDev = () => { if (!input) return log('Välj en In-port och anslut igen för att kunna läsa'); $('readstat').textContent = 'läser…'; send(DSP.REQ_DUMP); };
+let meterPause = 0, meterTimer = null;
+document.querySelectorAll('.meter').forEach(r => { for (let i = 0; i < 8; i++) r.querySelector('.segs').append(Object.assign(document.createElement('span'), { className: 'seg' })); });
+function drawMeter(ch, v) {
+  const row = document.querySelector(`.meter[data-ch=${ch}]`), on = DSP.meterSegments(v);
+  row.querySelectorAll('.seg').forEach((s, i) => s.classList.toggle('on', on[i]));
+  const db = DSP.meterDb(v); row.querySelector('output').textContent = Number.isFinite(db) ? db.toFixed(0) + ' dB' : '–';
+}
+$('meter').onchange = () => {
+  clearInterval(meterTimer); meterTimer = null;
+  if (!$('meter').checked) { drawMeter('L', 0); drawMeter('R', 0); return; }
+  if (!input) { $('meter').checked = false; return log('Välj en In-port och anslut igen för att kunna mäta'); }
+  // skickas direkt, inte genom sändkön (som väntar 300 ms), men bara när kön är tom och inte under en läsning av hela minnet
+  meterTimer = setInterval(() => { if (out && input && !busy && !q.length && Date.now() > meterPause) { try { out.send(DSP.REQ_METER); } catch (e) {} } }, 200);
+};
+const readDev = () => { meterPause = Date.now() + 2000; if (!input) return log('Välj en In-port och anslut igen för att kunna läsa'); $('readstat').textContent = 'läser…'; send(DSP.REQ_DUMP); };
 $('read').onclick = readDev;
 $('recall').onclick = () => { pc(+$('prog').value); if (input) readDev(); };   // byt program, läs sedan vad som ligger där
 $('store').onclick = () => {
@@ -209,7 +235,7 @@ function onDump(d) {
   renderAll(r); log(`IN dump: aktivt program ${r.active}`);
 }
 function onMsg(ev) {
-  if (ev.data[0] === 0xF0) return onDump(ev.data);
+  if (ev.data[0] === 0xF0) { const m = DSP.parseMeter(ev.data); return m ? (drawMeter('L', m.L), drawMeter('R', m.R)) : onDump(ev.data); }
   const [st, a, b] = ev.data;
   if ((st & 0xF0) === 0xC0) { ptr.e = ptr.f = null; return log(`IN pc ${a}`); }
   if ((st & 0xF0) !== 0xB0) return;

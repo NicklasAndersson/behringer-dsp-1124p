@@ -40,4 +40,12 @@ assert.deepStrictEqual(rs[0], ['pc', 8]); assert.deepStrictEqual(rs[rs.length - 
 assert.strictEqual(rs.filter(m => m[0] === 'cc' && m[1] === 10).length, 24);   // 12 filter x 2 motorer
 assert(rs.every(m => m[0] !== 'cc' || (m[2] >= 0 && m[2] <= 127)));
 assert.deepStrictEqual(rs.slice(3, 10), [['cc', 10, 0], ['cc', 11, 1], ['cc', 13, 14], ['cc', 14, 9], ['cc', 15, 59], ['cc', 16, 48], ['cc', 11, 0]]);
+const msg = (...b) => [0xF0, 0, 0x20, 0x32, 0, 8, 0x04, ...b, 0xF7];
+const mt = D.parseMeter(msg(0x1f, 0x7b, 0x68, 0x6f, 0x40, 0, 0, 0));           // prov ur loggen 2026-11-09
+assert.deepStrictEqual(mt, { L: 4091, R: 1135 });
+near(D.meterDb(924), -18.95, 0.05); near(D.meterDb(8191), 0, 1e-9);
+assert.deepStrictEqual(D.meterSegments(924), [true, true, true, false, false, false, false, false]);   // −19 dB: −40, −30 och −20 tända (som displayen vid ca −20)
+assert.deepStrictEqual(D.meterSegments(0), Array(8).fill(false));
+assert.deepStrictEqual(D.meterSegments(8191), Array(8).fill(true));
+assert.strictEqual(D.parseMeter(msg(0, 0, 0, 0, 0, 0, 0, 0).slice(0, 10)), null);
 console.log('ok');

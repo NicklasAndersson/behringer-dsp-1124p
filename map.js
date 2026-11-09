@@ -55,4 +55,12 @@ DSP.resetProgram = p => {
   m.push(['cc', C.engine, 1], ['cc', C.store, p]);
   return m;
 };
+// Nivåmätare (begäran 44, docs/midi.md): svaret är F0 00 20 32 00 08 04 + 8 byte + F7.
+// L = byte0·128 + byte1 (13 bit, 8191 = 0 dB, mätt mot displayen). R = (byte2 & 0x1f)·128 + byte3 är en OVERIFIERAD hypotes.
+DSP.REQ_METER = [0xF0, 0x00, 0x20, 0x32, 0x00, 0x08, 0x44, 0xF7];
+DSP.METER_DB = [-40, -30, -20, -15, -10, -6, -3, 0];            // åtta segment som på displayen; sista = clip
+DSP.parseMeter = d => (d.length === 16 && [0xF0, 0, 0x20, 0x32, 0, 8, 0x04].every((x, i) => d[i] === x))
+  ? { L: d[7] * 128 + d[8], R: (d[9] & 0x1f) * 128 + d[10] } : null;
+DSP.meterDb = v => v > 0 ? 20 * Math.log10(v / 8191) : -Infinity;
+DSP.meterSegments = v => { const db = DSP.meterDb(v); return DSP.METER_DB.map(t => db >= t - 1e-9); };   // clip tänds först vid 8191
 if (typeof module !== 'undefined') module.exports = DSP;
