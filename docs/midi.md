@@ -368,3 +368,22 @@ Värdet ligger i de fem översta bitarna i varje fält (värde << 3):
 - Fält 2: de äldsta dumparna (`dump-143801`, `q01`, `a`/`m`-serien) har 0, nyare 3. Gissning (otestad): något
   som ställdes om under 2026-11-09. Hypoteser som prövats och fallit: Couple, motor, filtervalet, läge, `S`.
 - Under testet ställdes menyn om och sattes tillbaka (`c`=1, `O`=1, `C`=3, `P`=3, `S`=1), dumpen blev identisk med före.
+
+### Filterläge OF/PA/AU/SI (2026-11-09, `dumps/g00..g02`)
+
+Program 10, vänster, filter 12 sattes med `CC 11` = 1, 0, 2, 3, 1, sparades med `CC 18 = 9` och dumpades efter varje.
+**Läget är två bitar**: bit `s−1` (sista biten i föregående post) och översta biten i frekvensfältet, tolkade som tal:
+
+| Läge | Bit s−1 | Bit s | Tal | `CC 11` | Displayen |
+|------|---------|-------|-----|---------|-----------|
+| OF | 0 | 0 | 0 | 0 | – |
+| PA | 0 | 1 | 1 | 1 | – |
+| AU | 1 | 0 | 2 | 2 | **AU** (kontrollerat 2026-11-09) |
+| SI | 1 | 1 | 3 | 3 | **SI** (kontrollerat 2026-11-09) |
+
+Därmed börjar en filterpost på bit `3 + 768·(program−1) + 384·motor + 32·(filter−1) − 1`:
+läge 2, frekvens 13 (sista biten oförklarad), bandbredd−1 7, gain+48 7, 3 nollbitar.
+- `CC 11` = 2 eller 3 accepteras och sparas av enheten. Filtret blinkar då på displayen (AU/SI är inte redigerbara).
+- Gain ändrades i dumpen först efter AU/SI (5 → 0 dB), inte efter OF, till skillnad från a12→a13 där OF nollade gain.
+  Orsaken är inte utredd.
+- Testfiltret återställdes (PA, 25, fine 4, bw 88, gain 5) och dumpen stämmer med `c01`.
