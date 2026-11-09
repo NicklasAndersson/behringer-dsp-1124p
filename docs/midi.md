@@ -393,3 +393,18 @@ Mina första `CC 17`-prov gjordes med höger motor aktiv och landade därför i 
 "okänt: 3 nu, 0 i äldre dumpar". De äldre dumparna hade helt enkelt vänster feedback = 0 (−9 dB).
 Raderna om "okänt fält 2" ovan är därmed utredda. Testet återställdes (båda motorerna värde 3 = −6 dB).
 Panelen visar feedback för den valda motorn och skickar `CC 12` före `CC 17`.
+
+### Den oförklarade biten i filterposterna (2026-11-09, utredd men **inte löst**)
+
+Med layouten 32 bitar per post sitter två "markörbitar" som inte hör till något mätt fält. Jämförelse av 71 dumpar:
+
+- **Plats:** per grupp om fyra poster (128 bitar, tre grupper per motor och program). Markör **X** = sista (13:e) bit i frekvensfältet i *första* posten i gruppen
+  (filter 1, 5, 9). Markör **Y** = mittbiten av de tre nollbitarna i *sista* posten (filter 4, 8, 12). Aldrig både X och Y i samma grupp.
+- **Inte:** paritet över gruppen (51 av 105 grupper stämmer, alltså slump), skrivräknare (fem sparningar i rad på samma program
+  gav ingen ändring), filterläge (samma fyra lägen ger alla tre utfallen), skillnad mellan `CC 18` och STORE-knappen (knappen gav
+  en dump bit för bit identisk med före), en ren funktion av gruppens eller programmets övriga bitar (17 grupper och 6 program
+  med identiskt innehåll har olika markörer).
+- **Iakttagelse:** programmen jag skrev med `CC 18` i mätserien 1–8 fick X överallt, det nollställda programmet fick ingen markör
+  (OF-innehåll), och de äldsta programmen (innan 2026-11-09) hade Y i stället. Orsaken är okänd.
+- **Följd:** avkodaren maskar bort biten (`u >> 1`), och inga mätta fält påverkas. Den behöver inte förstås för att panelen ska matcha enheten.
+- **Bonus:** STORE-knappen med `d` = 0 sänder `CC 18 = programnummer − 1` och sparar, utan dump. Samma som `CC 18` från datorn.

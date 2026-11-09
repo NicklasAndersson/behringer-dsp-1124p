@@ -64,7 +64,7 @@ motorerna och kan ändra det. Idag skickar panelen bara, den kan inte läsa.
 Vägen dit, i ordning:
 1. **Läsa programmet via SysEx-dumpen.** *Klart för PA-filter:* alla 12 filter på båda motorerna
    avkodas (`filters()` i `sysex.py`, layout i `docs/midi.md`). Alla tio program och svansen (aktivt program, In/Out, feedback, MIDI-menyn)
-   är avkodade. Läge OF/PA/AU/SI är avkodat. Svansen är helt tolkad (feedback är per motor). Kvar: en oförklarad bit i frekvensfältet och kommandona `40/44/45`.
+   är avkodade. Läge OF/PA/AU/SI är avkodat. Svansen är helt tolkad (feedback är per motor). Kvar: kommandona `40/44/45` och en markörbit per filtergrupp som är utredd men inte förstådd (ingen påverkan, se `docs/midi.md`).
 2. **Få enheten att dumpa från panelen.** *Klart:* SysEx `F0 00 20 32 00 08 4F F7` ger hela minnet
    (`docs/midi.md`). Kräver inte `d` = 2 (provat med `d` = 0).
 3. **Bygga om panelen** så att tabellen fylls från dumpen. *Klart (provat i Chrome 2026-11-09, läsning av ett program):* knappen
