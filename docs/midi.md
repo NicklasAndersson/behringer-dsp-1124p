@@ -305,3 +305,22 @@ Kontrolleras av `python3 -I sysex.py` (`filters()`).
 - Kvar efter programblocken: ca 549 bitar (3 + 10·768 = 7683 av 8232) som inte är tolkade. Läge SI/AU ej mätta.
 - STORE-knappen med `d` = 2 gav `CC 18 = 9` följt av en dump. `CC 18` från panelen utlöste ingen dump.
   Första STORE-trycket (09:14:50) gav bara `CC 18`, ingen dump. Varför är oklart.
+
+### Dump på begäran via SysEx (2026-11-09, steg 2)
+
+Enheten (`d` = 2 när testet började) svarar på `F0 00 20 32 00 08 <kommando> F7`. Svepet 00–7F
+(0,5 s mellanrum) gav svar bara på fyra kommandon, och tre omkörningar gav samma svar:
+
+| Skickat (kommando) | Svar (efter `F0 00 20 32 00 08`) | Tolkning |
+|--------------------|----------------------------------|----------|
+| `4F` | `0F` + 1176 byte payload + `F7` | **Hela minnet**, byte för byte som STORE-dumpen (`c01`) |
+| `40` | `00 01 01` | okänd (hypotes: version/status) |
+| `44` | `04 00 01 00 00 38 00 00 00` | okänd |
+| `45` | `05 01 7b` | okänd |
+
+Mönster: **svarskommando = begäran utan bit 6** (`4F` → `0F`, `40` → `00`, `44` → `04`, `45` → `05`). Det är en
+iakttagelse från fyra träffar, inte ur manualen. 00–3F och 41–43, 46–4E, 50–7F gav inget svar. Inget
+skickat innehåll har skrivit något i enheten, men enheten stod på `d` = 2 under hela testet.
+Ett kort blink på IN/OUT-lampan syns vid varje mottaget SysEx, även när enheten inte svarar.
+Oklart ännu: om `d` måste vara 2, och vad `40`, `44` och `45` betyder. Panelen kan alltså **läsa enheten utan att
+någon trycker STORE**, med `F0 00 20 32 00 08 4F F7`.
