@@ -333,3 +333,14 @@ någon trycker STORE**, med `F0 00 20 32 00 08 4F F7`.
 Alla tio program ligger alltid i dumpen, så en läsning ger hela enhetens minne plus vilket program som är valt.
 Dumpen visar det *sparade* programmet, inte osparat arbetsminne (jfr ovan).
 
+
+### Program 1–8 verifierade (2026-11-09, `dumps/e00` före, `dumps/e01` efter)
+
+Backup `e00` (hela minnet före). Sedan skrevs testvärden i filter 1 och 12 på båda motorerna i program 1–8
+(`PC`, sedan `CC 10/11/13/14/15/16` och `CC 18 = program−1`, `S` = 1), och en dump (`4F`) togs.
+
+- **31 av 32 filter stämde exakt** med avkodaren. Layouten gäller alltså alla tio program, inte bara 9 och 10.
+- Inget annat filter i minnet ändrades (program 9 och 10 identiska med `e00`).
+- Enda avvikelsen: program 7, höger, filter 12 skickades som 20 Hz med fine −7 och lagrades som 20 Hz, fine 0.
+  Troligen klämmer enheten ned till golvet (negativ frekvensenhet), men det är en hypotes, ingen mätning.
+- Aktivt program blev 8 (senast valt), vilket bekräftar att bitarna 8068..8071 följer `PC`.

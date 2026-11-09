@@ -31,7 +31,7 @@ def active(path):  # aktivt program 1-10: 4 bitar på payloadbit 8068 (mätt 202
 
 def filters(path):  # -> {(program 1-10, motor 0=V/1=H, filter 1-12): (läge PA?, ISO-index, fine, bw, gain dB)}
     # Råa 7-bitsbyte, 32 bitar per filter: frekvens 14 (bit 13 = PA, LSB oanvänd), bw-1 7, gain+48 7, 4 bitar noll.
-    # ponytail: program 1-10 antas ligga på samma avstånd (768 bitar), bara 9 och 10 kontrollerade.
+    # Program 1-10 ligger 768 bitar isär (verifierat 2026-11-09, dumps/e01).
     d = open(path, 'rb').read(); bits = ''.join(f'{b:07b}' for b in d[7:-1]); out = {}
     for p in range(10):
         for e in range(2):
@@ -63,5 +63,13 @@ elif __name__ == '__main__':
         assert c[10, 0, k + 1] == (True, 2 * k + 3, k + 2 - 9, 11 + 7 * k, 20 + 3 * k - 48), k
         assert c[10, 1, k + 1] == (True, 29 - 2 * k, 19 - k - 9, 101 - 7 * k, 60 - 3 * k - 48), k
     assert (active(os.path.join(D, 'd00-aktivt-program-1.syx')), active(os.path.join(D, 'd09-aktivt-program-10.syx'))) == (1, 10)
+    e = filters(os.path.join(D, 'e01-program1-8-testvarden.syx'))  # 31 av 32 testfilter; p7 H f12 klämdes av enheten
+    for pr in range(1, 9):
+        for m in (1, 2):
+            for k in (1, 12):
+                s = pr + (3 if m == 2 else 0) + (5 if k == 12 else 0)
+                want = (True, (s * 2 + 1) % 31, (s + pr) % 20 - 9, 11 + s * 5, 16 + s * 3 - 48)
+                if (pr, m, k) == (7, 2, 12): want = want[:2] + (0,) + want[3:]   # 20 Hz, fine -7 klämdes till 0
+                assert e[pr, m - 1, k] == want, (pr, m, k)
     assert filters(os.path.join(D, 'b01-L-f1-1k-fine5-bw20-g-6.syx'))[9, 0, 1] == (True, 17, 5, 20, -6)
     print('ok')
