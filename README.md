@@ -64,7 +64,7 @@ Vägen dit, i ordning:
    (antaget samma avstånd) och en oförklarad bit.
 2. **Få enheten att dumpa från panelen.** *Klart:* SysEx `F0 00 20 32 00 08 4F F7` ger hela minnet
    (`docs/midi.md`). Kräver inte `d` = 2 (provat med `d` = 0).
-3. **Bygga om panelen** så att tabellen fylls från dumpen. *Klart (ej provat i webbläsaren):* knappen
+3. **Bygga om panelen** så att tabellen fylls från dumpen. *Klart (provat i Chrome 2026-11-09, läsning av ett program):* knappen
    **Läs från enheten**. Ändringar skickas som CC (som nu), och `CC 18` sparar.
 
 ## Filer
