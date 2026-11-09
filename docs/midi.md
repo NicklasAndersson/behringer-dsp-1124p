@@ -354,8 +354,8 @@ Värdet ligger i de fem översta bitarna i varje fält (värde << 3):
 |------|----------|---------|----------|
 | 0 | Aktivt program | 1..10 | `PC` 0..9 (se ovan) |
 | 1 | In/Out | `(CC 19 − 1) mod 4`: CC 19 = 2 → 1, 1 → 0, 0 → 3 | `CC 19` = 0/1/2 + `CC 18` |
-| 2 | **okänt** | 3 i nyare dumpar, 0 i äldre | ändras inte av Couple/motor/filter/läge/`S` |
-| 3 | Feedback-känslighet | = värdet i `CC 17` (dB + 9) | `CC 17` = 0, 3, 6 + `CC 18` |
+| 2 | Feedback-känslighet **vänster** motor | = `CC 17`-värdet (dB + 9) | `CC 12 = 1`, `CC 17` = 1, 3 (2026-11-09, `f04`) |
+| 3 | Feedback-känslighet **höger** motor | = `CC 17`-värdet (dB + 9) | `CC 17` = 0, 3, 6 (höger motor aktiv) och `CC 12 = 2`, `CC 17` = 0, 5 (`f02`, `f04`) |
 | 4 | MIDI-menyn `c` (kanal) | värdet | `c` 1 → 2 |
 | 5 | MIDI-menyn `O` (omni) | värdet | `O` 1 → 0 |
 | 6 | MIDI-menyn `C` | värdet | `C` 3 → 4 |
@@ -387,3 +387,9 @@ läge 2, frekvens 13 (sista biten oförklarad), bandbredd−1 7, gain+48 7, 3 no
 - Gain ändrades i dumpen först efter AU/SI (5 → 0 dB), inte efter OF, till skillnad från a12→a13 där OF nollade gain.
   Orsaken är inte utredd.
 - Testfiltret återställdes (PA, 25, fine 4, bw 88, gain 5) och dumpen stämmer med `c01`.
+
+**Rättelse 2026-11-09 (fält 2 utrett):** feedback-känsligheten är **per motor**. `CC 17` gäller den motor som valts med `CC 12`.
+Mina första `CC 17`-prov gjordes med höger motor aktiv och landade därför i fält 3; fält 2 (vänster) såg jag som
+"okänt: 3 nu, 0 i äldre dumpar". De äldre dumparna hade helt enkelt vänster feedback = 0 (−9 dB).
+Raderna om "okänt fält 2" ovan är därmed utredda. Testet återställdes (båda motorerna värde 3 = −6 dB).
+Panelen visar feedback för den valda motorn och skickar `CC 12` före `CC 17`.

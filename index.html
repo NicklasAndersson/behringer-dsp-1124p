@@ -167,7 +167,15 @@ $('store').onclick = () => {
   if (confirm(`Skriv över program ${+$('prog').value + 1} med enhetens nuvarande inställningar? (Kräver S=1 på enheten.)`)) cc(DSP.CC.store, +$('prog').value);
 };
 $('sendio').onclick = () => cc(DSP.CC.inout, +$('io').value);
-$('sendfb').onclick = () => cc(DSP.CC.fb, DSP.enc.fb(+$('fb').value));
+let fbCC = null;                                          // feedback per motor ur dumpen: { 1: vänster, 2: höger } (CC 17-värden)
+const showFb = () => { const e = shown(); if (fbCC) $('fb').value = fbCC[e] - 9; };
+document.querySelectorAll('input[name=eng]').forEach(r => r.addEventListener('change', showFb));
+// feedback gäller den motor som är vald (Vänster/Höger/Couple), alltså skickas CC 12 först
+$('sendfb').onclick = () => {
+  const e = +document.querySelector('input[name=eng]:checked').value, v = DSP.enc.fb(+$('fb').value);
+  cc(DSP.CC.engine, e); cc(DSP.CC.fb, v); ptr.e = e;
+  if (fbCC) for (const m of e ? [e] : [1, 2]) fbCC[m] = v;
+};
 $('clr').onclick = () => $('log').textContent = '';
 
 // --- MIDI in: enhetens egna vridningar uppdaterar pekare och värden
@@ -196,7 +204,7 @@ $('all').addEventListener('click', e => {
 function onDump(d) {
   const r = DSP.parseDump(d); if (!r) return log(`IN sysex ${d.length} B (okänt)`);
   for (const m of [1, 2]) state[m] = r.programs[r.active - 1][m - 1].map(f => ({ ...f }));
-  $('prog').value = r.active - 1; $('io').value = r.inout; $('fb').value = r.fb - 9; ptr.e = ptr.f = null; render();
+  $('prog').value = r.active - 1; $('io').value = r.inout; fbCC = { 1: r.fbL, 2: r.fbR }; showFb(); ptr.e = ptr.f = null; render();
   $('readstat').textContent = `läste program ${r.active} kl. ${new Date().toLocaleTimeString()}`;
   renderAll(r); log(`IN dump: aktivt program ${r.active}`);
 }

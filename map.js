@@ -39,8 +39,8 @@ DSP.parseDump = d => {
     return { mode: parseInt(bits[s - 1], 2) * 2 + (u >> 13), freq: Math.floor(u2 / 20) + lo, fine: r - 20 * lo, bw: parseInt(bits.substr(s + 14, 7), 2) + 1, gain: parseInt(bits.substr(s + 21, 7), 2) - 48 };
   })));
   const g = j => parseInt(bits.substr(8067 + 8 * j, 5), 2);   // svansen: 8-bitarsgrupper, värdet = fem översta bitarna
-  // inout/fb är CC 19/CC 17-värden. c, omni, C, P = MIDI-menyn. okand = byte 2 (3 nu, 0 i äldre dumpar, orsak okänd).
-  return { active: g(0), inout: (g(1) + 1) % 4, fb: g(3), c: g(4), omni: g(5), C: g(6), P: g(7), okand: g(2), programs };
+  // inout/fbL/fbR är CC 19/CC 17-värden (fbL = vänster motor, fbR = höger). c, omni, C, P = MIDI-menyn.
+  return { active: g(0), inout: (g(1) + 1) % 4, fbL: g(2), fbR: g(3), c: g(4), omni: g(5), C: g(6), P: g(7), programs };
 };
 // Nollställ ett helt program (0..9): alla 24 filter OF, 500 Hz, fine 0, bw 60, 0 dB, sedan spara (CC 18, kräver S=1).
 // Värdena sätts i PA och läget OF sist (OF kan spärra redigering). -> lista av ['pc', p] | ['cc', n, v] | ['delay', ms].
