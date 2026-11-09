@@ -70,6 +70,13 @@ Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</
   | Feedback-känslighet <select id=fb></select><button id=sendfb>Skicka</button>
 </fieldset>
 
+<fieldset><legend>Säkerhetskopia</legend>
+  <button id=bkp disabled>Spara säkerhetskopia (.syx)</button>
+  Återställ från fil <input id=rest type=file accept=".syx" disabled>
+  <br><small>Kopian är enhetens minne vid senaste hämtningen (alla tio program, In/Out, feedback). Återställning skriver bara filtren i de program som skiljer sig från enheten
+  och sparar dem (CC 18, kräver S=1); det tar några minuter. In/Out och feedback återställs inte.</small>
+</fieldset>
+
 <fieldset><legend>Alla program (senaste läsningen)</legend>
   <div id=all><small>Tryck <b>Hämta allt från enheten</b> för att visa alla tio program.</small></div>
 </fieldset>
@@ -233,16 +240,42 @@ function renderAll(r) {
     box.append(d);
   });
 }
+function runOps(ops) {                                    // ['pc', p] | ['cc', n, v] | ['delay', ms] genom sändkön
+  for (const [k, a, b] of ops) {
+    if (k === 'pc') { send([0xC0, a]); activeP = viewP = a; $('view').value = a; }
+    else if (k === 'cc') cc(a, b); else q.push(a);
+  }
+  ptr.e = ptr.f = null;
+}
+let raw = null;                                           // senaste dumpen som den kom, för säkerhetskopian
+$('bkp').onclick = () => {
+  const t = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([raw])), download: `dsp1124p-${t}.syx` });
+  a.click(); URL.revokeObjectURL(a.href);
+};
+$('rest').onchange = async e => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  const r = DSP.parseDump(new Uint8Array(await file.arrayBuffer()));
+  if (!r) return log('Filen är ingen DSP1124P-dump');
+  if (!out || !dump) return log('Anslut och hämta från enheten först');
+  const ops = [...Array(10).keys()].map(p => DSP.writeProgram(p, r.programs[p], dump.programs[p]));
+  const n = ops.filter(o => o.length).length, ms = ops.flat().length * +$('delay').value;
+  if (!n) return log('Enheten har redan samma filter som filen');
+  if (!confirm(`Skriv över ${n} program på enheten med filtren från ${file.name}? Det tar ca ${Math.ceil(ms / 60000)} min och sparar med CC 18 (kräver S=1).`)) return;
+  const back = activeP;
+  ops.forEach(runOps); runOps([['pc', back]]);
+  if (input) { q.push(1000); readDev(); }
+};
 $('reset').onclick = () => {
   const p = +$('prog').value;
   if (!out) return log('Inte ansluten');
   if (!confirm(`Nollställ program ${+p + 1}? Alla 24 filter blir OF, 500 Hz, fine 0, bandbredd 60, 0 dB och programmet sparas över (CC 18, kräver S=1). Det tar ca 1 minut och enheten byter till programmet.`)) return;
-  for (const [k, a, b] of DSP.resetProgram(+p)) k === 'pc' ? send([0xC0, a]) : k === 'cc' ? cc(a, b) : q.push(a);
-  ptr.e = ptr.f = null; activeP = viewP = p; $('view').value = p;
+  runOps(DSP.resetProgram(+p));
   if (input) { q.push(1000); readDev(); }                // läs om så att resultatet syns
 };
 function onDump(d) {
   const r = DSP.parseDump(d); if (!r) return log(`IN sysex ${d.length} B (okänt)`);
+  raw = Uint8Array.from(d); $('bkp').disabled = $('rest').disabled = false;
   dump = r; activeP = viewP = r.active - 1; $('view').value = viewP;
   for (const m of [1, 2]) state[m] = r.programs[activeP][m - 1].map(f => ({ ...f }));
   $('prog').value = activeP; $('io').value = r.inout; fbCC = { 1: r.fbL, 2: r.fbR }; showFb(); ptr.e = ptr.f = null; render();

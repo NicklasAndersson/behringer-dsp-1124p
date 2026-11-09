@@ -40,6 +40,9 @@ assert.deepStrictEqual(rs[0], ['pc', 8]); assert.deepStrictEqual(rs[rs.length - 
 assert.strictEqual(rs.filter(m => m[0] === 'cc' && m[1] === 10).length, 24);   // 12 filter x 2 motorer
 assert(rs.every(m => m[0] !== 'cc' || (m[2] >= 0 && m[2] <= 127)));
 assert.deepStrictEqual(rs.slice(3, 10), [['cc', 10, 0], ['cc', 11, 1], ['cc', 13, 14], ['cc', 14, 9], ['cc', 15, 59], ['cc', 16, 48], ['cc', 11, 0]]);
+const dp = D.defaultProgram(), mod = D.defaultProgram(); mod[1][4] = { mode: 1, freq: 5, fine: -2, bw: 30, gain: 6 };
+assert.deepStrictEqual(D.writeProgram(3, dp, dp), []);                                   // inget skiljer -> inget skrivs
+assert.deepStrictEqual(D.writeProgram(3, mod, dp), [['pc', 3], ['delay', 1500], ['cc', 12, 2], ['cc', 10, 4], ['cc', 11, 1], ['cc', 13, 5], ['cc', 14, 7], ['cc', 15, 29], ['cc', 16, 54], ['cc', 12, 1], ['cc', 18, 3]]);
 const msg = (...b) => [0xF0, 0, 0x20, 0x32, 0, 8, 0x04, ...b, 0xF7];
 const mt = D.parseMeter(msg(0x1f, 0x7b, 0x68, 0x6f, 0x40, 0, 0, 0));           // prov ur loggen 2026-11-09
 assert.deepStrictEqual(mt, { L: 4091, R: 4540 });
