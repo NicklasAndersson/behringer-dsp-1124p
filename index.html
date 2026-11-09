@@ -193,9 +193,12 @@ async function init() {
   render();
   try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
   catch (e) { $('status').textContent = 'Web MIDI nekad/ej stött: ' + e.message; return; }
-  const fill = () => {
+  const fill = () => {                                   // behåll valen när portlistan ändras (annars nollställs In vid varje statechange)
+    const o = $('out').value, i = $('inp').value;
     $('out').innerHTML = ''; [...midi.outputs.values()].forEach(p => $('out').add(new Option(p.name, p.id)));
     $('inp').length = 1; [...midi.inputs.values()].forEach(p => $('inp').add(new Option(p.name, p.id)));
+    if (o) $('out').value = o;
+    $('inp').value = i || ([...midi.inputs.values()][0]?.id ?? '');   // första In-porten som förval
   };
   midi.onstatechange = fill; fill();
 }
