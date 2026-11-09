@@ -468,3 +468,8 @@ Prov med jämn signal: grundläget lästes av som ca **−20 dB** på L-stapeln,
   vilket stämmer med att de hör till R.
 - Mätaren ligger efter filtren (jämför ovan), så den visar utsignalen.
 - Begäran `44` kan alltså användas för en live-mätare i panelen. Svarstiden var ca 0,1 s per begäran.
+
+**R-skala (2026-11-09, 25 prov med musik på båda ingångarna):** `(byte2 & 0x1f)·128 + byte3` låg konstant på ca en fjärdedel av
+`byte0·128 + byte1` (0,24–0,27, till exempel L 2428 ↔ R 606, L 1929 ↔ R 482). Panelens R-stapel visade därför ca 12 dB för lågt.
+Tolkning (hypotes, ej bevisad mot displayen eller med signal på bara höger ingång): R-fältet har skala 2047 = 0 dB, så panelen multiplicerar med 4.
+Alternativet är att källan verkligen är 12 dB svagare på höger ingång, och då ska faktorn bort.
