@@ -243,7 +243,7 @@ function onDump(d) {
   renderAll(r); log(`IN dump: aktivt program ${r.active}`);
 }
 function onMsg(ev) {
-  if (ev.data[0] === 0xF0) { const m = DSP.parseMeter(ev.data); return m ? (drawMeter('L', m.L), drawMeter('R', m.R)) : onDump(ev.data); }
+  if (ev.data[0] === 0xF0) { const m = DSP.parseMeter(ev.data); return m ? (drawMeter('L', m.L), drawMeter('R', m.R)) : (log(`IN sysex ${ev.data.length} B`), (() => { try { onDump(ev.data); } catch (e) { log('Fel i dump: ' + e.message); } })()); }
   const [st, a, b] = ev.data;
   if ((st & 0xF0) === 0xC0) { ptr.e = ptr.f = null; activeP = viewP = a; $('view').value = a; render(); return log(`IN pc ${a}`); }
   if ((st & 0xF0) !== 0xB0) return;
