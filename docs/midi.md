@@ -449,3 +449,22 @@ Svar (nyttolasten efter svarskommandot, alltså efter `F0 00 20 32 00 08 <svar>`
 - Jag laddade om programmet (`PC 0` och `PC 9`) efter testet, så inget osparat blev kvar. `CC 19` står på 2.
 - Kvar att avgöra: exakt vilka bytes som är vänster och höger, skalan (linjär amplitud eller dB), och om byte 4 är ytterligare en mätare
   eller bruset. Skulle avgöras med en känd ton på bara en ingång åt gången.
+
+**Uppföljning 2026-11-09 (staplarna på displayen):** Nicklas noterade att `44` troligen är nivåstaplarna. Displayen har två staplar, **L och R**,
+med åtta segment vardera: clip, −3, −6, −10, −15, −20, −30, −40 dB.
+
+Prov med jämn signal: grundläget lästes av som ca **−20 dB** på L-stapeln, och efter +16 dB (brett filter, vänster motor, osparat)
+**blinkade L vid −3**. Samtidigt visade `44`:
+
+| Läge | `byte0·128 + byte1` | `20·log10(värde / 8191)` | Displayen |
+|------|---------------------|--------------------------|-----------|
+| grund | median 924 | −19 dB | ca −20 |
+| +16 dB | median 2 426, topp 6 378 | −10,6 dB, topp −2,2 dB | L blinkar vid −3 |
+
+- **L-nivå = `byte0·128 + byte1`** (13 bitar), linjär amplitud där **8191 = 0 dB (fullt utslag)**. Stämmer med displayen på två punkter.
+- Byte 4 (multiplar av 8) och bitarna `0x20`/`0x40` i byte 2 flimrar även i tystnad och är sannolikt lägre bitar eller brus. Inte tolkade.
+- **R-nivå:** Nicklas bedömer att R är uppbyggd exakt som L. Det är **inte mätt**. Hypotes från tidigare prov: byte 2 (låga fem bitar) och byte 3,
+  alltså `(byte2 & 0x1f)·128 + byte3`. Ett R-prov med ljud på bara höger ingång återstår. Försöket med R-filter +16 dB gav byte 2 med 4–13 i de låga bitarna,
+  vilket stämmer med att de hör till R.
+- Mätaren ligger efter filtren (jämför ovan), så den visar utsignalen.
+- Begäran `44` kan alltså användas för en live-mätare i panelen. Svarstiden var ca 0,1 s per begäran.
