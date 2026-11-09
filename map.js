@@ -47,18 +47,19 @@ DSP.parseDump = d => {
 DSP.defaultProgram = () => [0, 1].map(() => Array.from({ length: 12 }, () => ({ mode: 0, freq: 14, fine: 0, bw: 60, gain: 0 })));
 // Skriver program p (prog = [vänster[12], höger[12]]) via CC och sparar det (CC 18). cur = nuvarande innehåll: bara filter som skiljer sig skrivs; null = alla.
 // Inget som ska skrivas -> []. Värdena sätts i PA och målläget sist (OF kan spärra redigering).
+DSP.filterOps = (k, f) => {
+  const C = DSP.CC, m = [['cc', C.filter, k], ['cc', C.mode, 1], ['cc', C.freq, DSP.toCC('freq', f.freq)], ['cc', C.fine, DSP.toCC('fine', f.fine)],
+                         ['cc', C.bw, DSP.toCC('bw', f.bw)], ['cc', C.gain, DSP.toCC('gain', f.gain)]];
+  if (f.mode !== 1) m.push(['cc', C.mode, f.mode]);
+  return m;
+};
 DSP.writeProgram = (p, prog, cur) => {
   const C = DSP.CC, m = [], same = (a, b) => ['mode', 'freq', 'fine', 'bw', 'gain'].every(k => a[k] === b[k]);
   for (const e of [0, 1]) {
     const todo = prog[e].map((f, k) => k).filter(k => !cur || !same(prog[e][k], cur[e][k]));
     if (!todo.length) continue;
     m.push(['cc', C.engine, e + 1]);
-    for (const k of todo) {
-      const f = prog[e][k];
-      m.push(['cc', C.filter, k], ['cc', C.mode, 1], ['cc', C.freq, DSP.toCC('freq', f.freq)], ['cc', C.fine, DSP.toCC('fine', f.fine)],
-             ['cc', C.bw, DSP.toCC('bw', f.bw)], ['cc', C.gain, DSP.toCC('gain', f.gain)]);
-      if (f.mode !== 1) m.push(['cc', C.mode, f.mode]);
-    }
+    for (const k of todo) m.push(...DSP.filterOps(k, prog[e][k]));
   }
   return m.length ? [['pc', p], ['delay', 1500], ...m, ['cc', C.engine, 1], ['cc', C.store, p]] : [];
 };

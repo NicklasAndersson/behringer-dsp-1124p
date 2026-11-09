@@ -43,6 +43,8 @@ assert.deepStrictEqual(rs.slice(3, 10), [['cc', 10, 0], ['cc', 11, 1], ['cc', 13
 const dp = D.defaultProgram(), mod = D.defaultProgram(); mod[1][4] = { mode: 1, freq: 5, fine: -2, bw: 30, gain: 6 };
 assert.deepStrictEqual(D.writeProgram(3, dp, dp), []);                                   // inget skiljer -> inget skrivs
 assert.deepStrictEqual(D.writeProgram(3, mod, dp), [['pc', 3], ['delay', 1500], ['cc', 12, 2], ['cc', 10, 4], ['cc', 11, 1], ['cc', 13, 5], ['cc', 14, 7], ['cc', 15, 29], ['cc', 16, 54], ['cc', 12, 1], ['cc', 18, 3]]);
+assert.deepStrictEqual(D.filterOps(4, mod[1][4]), [['cc', 10, 4], ['cc', 11, 1], ['cc', 13, 5], ['cc', 14, 7], ['cc', 15, 29], ['cc', 16, 54]]);
+assert.deepStrictEqual(D.filterOps(0, { mode: 3, freq: 14, fine: 0, bw: 60, gain: 0 }).slice(-1), [['cc', 11, 3]]);
 const msg = (...b) => [0xF0, 0, 0x20, 0x32, 0, 8, 0x04, ...b, 0xF7];
 const mt = D.parseMeter(msg(0x1f, 0x7b, 0x68, 0x6f, 0x40, 0, 0, 0));           // prov ur loggen 2026-11-09
 assert.deepStrictEqual(mt, { L: 4091, R: 4540 });

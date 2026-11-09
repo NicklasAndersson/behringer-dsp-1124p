@@ -70,6 +70,15 @@ Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</
   | Feedback-känslighet <select id=fb></select><button id=sendfb>Skicka</button>
 </fieldset>
 
+<fieldset><legend>Kopiera</legend>
+  <button id=cpv2h>Vänster → Höger</button> <button id=cph2v>Höger → Vänster</button> (hela motorn, aktivt program)
+  <br>Filter <select id=cf1></select> <select id=ce1><option value=1>Vänster<option value=2>Höger</select> →
+  <select id=cf2></select> <select id=ce2><option value=1>Vänster<option value=2 selected>Höger</select>
+  <button id=cpf>Kopiera filter</button> (aktivt program, sparas inte)
+  <br>Program <select id=cp1></select> → <select id=cp2></select> <button id=cpp>Kopiera program</button>
+  (hela programmet, sparas med CC 18, kräver S=1; enheten byter program)
+</fieldset>
+
 <fieldset><legend>Säkerhetskopia</legend>
   <button id=bkp disabled>Spara säkerhetskopia (.syx)</button>
   Återställ från fil <input id=rest type=file accept=".syx" disabled>
@@ -247,6 +256,31 @@ function runOps(ops) {                                    // ['pc', p] | ['cc', 
   }
   ptr.e = ptr.f = null;
 }
+for (let i = 1; i <= 12; i++) { $('cf1').add(new Option(i, i - 1)); $('cf2').add(new Option(i, i - 1)); }
+for (let i = 1; i <= 10; i++) { $('cp1').add(new Option(i, i - 1)); $('cp2').add(new Option(i, i - 1)); }
+const copyMotor = (a, b) => {                              // Couple kopierar aktiv motor till den andra (docs/midi.md), sedan ut ur Couple
+  if (!out) return log('Inte ansluten');
+  cc(DSP.CC.engine, a); cc(DSP.CC.engine, 0); cc(DSP.CC.engine, b);
+  state[b] = state[a].map(f => ({ ...f })); ptr.e = b; ptr.f = null; render();
+};
+$('cpv2h').onclick = () => copyMotor(1, 2); $('cph2v').onclick = () => copyMotor(2, 1);
+$('cpf').onclick = () => {
+  if (!out) return log('Inte ansluten');
+  const e1 = +$('ce1').value, e2 = +$('ce2').value, f1 = +$('cf1').value, f2 = +$('cf2').value, f = { ...state[e1][f1] };
+  cc(DSP.CC.engine, e2); runOps(DSP.filterOps(f2, f));
+  state[e2][f2] = f; ptr.e = e2; ptr.f = f2; render();
+};
+$('cpp').onclick = () => {
+  const a = +$('cp1').value, b = +$('cp2').value;
+  if (!out || !dump) return log('Anslut och hämta från enheten först');
+  if (a === b) return log('Välj två olika program');
+  const ops = DSP.writeProgram(b, dump.programs[a], dump.programs[b]);
+  if (!ops.length) return log(`Program ${b + 1} är redan likadant som program ${a + 1}`);
+  if (!confirm(`Skriv över program ${b + 1} med program ${a + 1} (sparas med CC 18, kräver S=1)?`)) return;
+  const back = activeP;
+  runOps(ops); runOps([['pc', back]]);
+  if (input) { q.push(1000); readDev(); }
+};
 let raw = null;                                           // senaste dumpen som den kom, för säkerhetskopian
 $('bkp').onclick = () => {
   const t = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);

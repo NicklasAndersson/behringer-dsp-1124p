@@ -54,6 +54,8 @@ alla tio sparade program, aktivt program, In/Out och feedback. Osparade ändring
 **Visa program** bläddrar bland de tio programmen utan att röra enheten; redigering går bara på det program som är aktivt på enheten.
 **Byt program på enheten (PC)** byter program på enheten. **Nollställ program** sätter alla 24 filter i valt program
 till OF, 500 Hz, fine 0, bandbredd 60, 0 dB och sparar (`CC 18`, kräver `S` = 1; tar ca 1 minut).
+**Kopiera** kopierar hela motorn (Vänster ↔ Höger, via Couple på enheten), ett enskilt filter (aktivt program, sparas inte) eller ett helt program till ett annat
+programnummer (skriver bara de filter som skiljer sig, sparar med `CC 18`, kräver `S` = 1, enheten byter program).
 **Säkerhetskopia** sparar enhetens minne från senaste hämtningen som en `.syx`-fil. **Återställ från fil** skriver tillbaka filtren
 via CC, bara i de program och filter som skiljer sig från enheten, och sparar (`CC 18`, kräver `S` = 1; några minuter). In/Out och feedback återställs inte.
 **Nivå** (kryssrutan *Live-mätare*, kräver In-port) visar två staplar L och R med åtta segment som på displayen,
@@ -70,7 +72,6 @@ Efter läsningen följer panelen det du skickar och det enheten sänder.
 
 ## Nästa steg
 
-- Kopiera filter eller motor (vänster → höger) och programmet till ett annat programnummer.
 - Osparat arbetsminne kan inte läsas via MIDI; STORE-lampan är den enda indikationen.
 
 Protokollet och avkodningen av SysEx-dumpen står i `docs/midi.md`.
