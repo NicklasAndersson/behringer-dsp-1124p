@@ -60,7 +60,7 @@ Efter läsningen följer panelen det du skickar och det enheten sänder.
 
 ## Begränsningar
 
-- **Couple** kopierar hela den aktiva motorn till den andra, men panelen uppdaterar bara den parameter du skickar. Hämta från enheten efteråt.
+- **Couple** kopierar hela den aktiva motorn till den andra. Panelen gör samma kopia i sin tabell när du ändrar något i Couple. Vrider du Couple på enheten själv, hämta från enheten efteråt.
 - **Spara hit (CC 18)** fungerar bara med `S` = 1, och `S` nollställs varje gång enheten startas.
 - In/Out provat mot lamporna, inte mot ljudet.
 - EQ-kurvan är beräknad med en vanlig peak-EQ, inte mätt på enheten.
@@ -68,7 +68,6 @@ Efter läsningen följer panelen det du skickar och det enheten sänder.
 
 ## Nästa steg
 
-- Couple: låt panelen kopiera hela motorn så att båda visas rätt.
 - Säkerhetskopia: spara alla tio program till en fil och skicka tillbaka dem till enheten (återställning går via CC, ca 1 minut per program).
 - Kopiera filter eller motor (vänster → höger) och programmet till ett annat programnummer.
 - Osparat arbetsminne kan inte läsas via MIDI; STORE-lampan är den enda indikationen.

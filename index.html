@@ -37,7 +37,7 @@ Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</
   <label><input type=radio name=eng value=1 checked> Vänster</label>
   <label><input type=radio name=eng value=2> Höger</label>
   <label><input type=radio name=eng value=0> Couple (båda)</label>
-  <small>Couple skickar ändringar till båda motorerna.</small>
+  <small>Couple kopierar hela den motor som var vald senast till den andra och skickar sedan ändringar till båda.</small>
 </fieldset>
 
 <fieldset><legend>Nivå</legend>
@@ -115,7 +115,12 @@ function setParam(f, param, userVal, skipSelect) {
   const v = DSP.toCC(param, userVal);
   if (Number.isNaN(v)) return log(`Ogiltigt värde för ${param}`);
   const e = +document.querySelector('input[name=eng]:checked').value;
-  if (!skipSelect) { cc(DSP.CC.engine, e); cc(DSP.CC.filter, f); ptr.e = e; ptr.f = f; }   // enhetens pekare följer CC 12/10
+  if (!skipSelect) {
+    if (e === 0 && ptr.e !== 0) {                          // CC 12 = 0 kopierar hela den aktiva motorn till den andra
+      const src = ptr.e || lastEng; state[3 - src] = state[src].map(x => ({ ...x }));
+    }
+    cc(DSP.CC.engine, e); cc(DSP.CC.filter, f); ptr.e = e; ptr.f = f;
+  }   // enhetens pekare följer CC 12/10
   cc(DSP.CC[param], v);
   for (const m of e ? [e] : [1, 2]) state[m][f][param] = DSP.dec[param](v);
   render();                                               // visar klämt värde om det justerats
@@ -172,7 +177,8 @@ tbl.addEventListener('click', e => {
   const f = +e.target.closest('tr').dataset.f, st = state[shown()][f];
   ['mode', 'freq', 'fine', 'bw', 'gain'].forEach((p, i) => setParam(f, p, st[p], i > 0));
 });
-document.querySelectorAll('input[name=eng]').forEach(r => r.onchange = render);
+let lastEng = 1;                                        // senast valda enskilda motor = källa vid Couple
+document.querySelectorAll('input[name=eng]').forEach(r => r.onchange = () => { if (+r.value) lastEng = +r.value; render(); });
 
 // --- program, in/out, feedback
 for (let i = 1; i <= 10; i++) { $('prog').add(new Option(i, i - 1)); $('view').add(new Option(i, i - 1)); }
