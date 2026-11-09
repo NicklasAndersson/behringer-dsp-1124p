@@ -430,3 +430,22 @@ Svar (nyttolasten efter svarskommandot, alltså efter `F0 00 20 32 00 08 <svar>`
   Ett försök att jämföra In/Out-lägena (`CC 19` = 2, 1, 0, 2, 10 s var) medan Nicklas spelade ljud var inte avgörande: nivåerna var små (≈ 20–30 av 8191)
   och skillnaderna inom bruset, trots att ljud spelades. Orsaken är inte utredd (svagt ljud, annan ingång, eller att mätaren mäter något annat än nivån).
 - Skulle gå att avgöra med en jämn ton på bara vänster respektive höger ingång.
+
+**Uppföljning 2026-11-09 (starkare signal, `44` mäter utsignal, vänster kanal):**
+
+| Läge (osparat, program 10, vänster motor, filter 3, PA, 1 kHz, bw 120) | `byte0·128 + byte1` (median 6 s) | byte 3 |
+|----|----|----|
+| grund | 924 | 62 |
+| gain +16 dB | **2 856** (≈ ×3,1) | 64 |
+| gain −48 dB | **187** (≈ ÷5) | 76 |
+| höger motor, samma filter +16 dB | 1 192 | 60 |
+
+- Bytes 0–1 följer alltså vänster motors filter: mätaren ligger **efter filtren** (utgång), inte på ingången. I tidigare In/Out-test
+  (`CC 19` 2/1/0) såg man ingen skillnad, men då var nästan alla filter OF eller 0 dB, så ingång och utgång var lika.
+- Höger motor: bytes 0–1 ändrades knappt (924 → 1 192, inom signalens variation), men byte 2 fick plötsligt många nya värden
+  (låga fem bitar 4–13 i stället för 0–2, plus bitarna `0x20`/`0x40` som varierar). **Hypotes (ej bevisad):** byte 2 (och kanske byte 3) hör
+  till höger kanal. Byte 3 ändrades inte med höger filter.
+- Mätningen gjordes med en signal som Nicklas spelade, vars nivå och kanal jag inte kontrollerade. Medianer över 6 s, ett prov per rad.
+- Jag laddade om programmet (`PC 0` och `PC 9`) efter testet, så inget osparat blev kvar. `CC 19` står på 2.
+- Kvar att avgöra: exakt vilka bytes som är vänster och höger, skalan (linjär amplitud eller dB), och om byte 4 är ytterligare en mätare
+  eller bruset. Skulle avgöras med en känd ton på bara en ingång åt gången.
