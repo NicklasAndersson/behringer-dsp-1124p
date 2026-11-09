@@ -17,9 +17,10 @@
   @media(max-width:640px){td,th{padding:.2rem}}
 </style>
 <h1>DSP1124P</h1>
-<p class=warn>Skrivande panel: enheten kan inte läsas av ännu, så värdena visar det vi senast skickat
-(och det enheten sänder när du vrider på den, om MIDI IN är inkopplad: enheten sänder CC 12/10 när du byter
-motor/filter och parametern när du vrider, men inte när du bara trycker en parameterknapp).
+<p class=warn>Tryck <b>Läs från enheten</b> (kräver inkopplad MIDI IN) för att hämta det <i>sparade</i> programmet.
+Osparade ändringar syns inte i läsningen: STORE-lampan blinkar när något är osparat. Efter en läsning följer panelen
+det du skickar och det enheten sänder när du vrider på den (CC 12/10 vid motor-/filterbyte, parametern vid vridning,
+men inget när du bara trycker en parameterknapp). Lägena SI/AU är inte mätta.
 Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
 
 <fieldset><legend>Anslutning</legend>
@@ -46,6 +47,7 @@ Enheten: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
 <fieldset><legend>Program och global</legend>
   Program <select id=prog></select>
   <button id=recall>Hämta (PC)</button>
+  <button id=read title="Skickar SysEx-begäran. Webbläsaren frågar om SysEx-tillstånd.">Läs från enheten</button> <span id=readstat></span>
   <button id=store title="Kräver S=1 på enheten (nollställs vid varje uppstart)">Spara hit (CC 18, kräver S=1)</button>
   | In/Out <select id=io>
     <option value=2>Aktiv</option><option value=1>Parametrisk bypass</option>
@@ -75,8 +77,8 @@ const q = []; let busy = false;
 async function pump() {
   if (busy) return; busy = true;
   while (q.length) {
-    const m = q.shift(); m[0] |= +$('ch').value - 1;
-    try { out.send(m); log('UT ' + (m.length > 2 ? `cc ${m[1]} = ${m[2]}` : `pc ${m[1]}`)); }
+    const m = q.shift(); if (m[0] < 0xF0) m[0] |= +$('ch').value - 1;
+    try { out.send(m); log('UT ' + (m[0] === 0xF0 ? 'sysex begäran' : m.length > 2 ? `cc ${m[1]} = ${m[2]}` : `pc ${m[1]}`)); }
     catch (e) { log('Fel vid sändning: ' + e.message); }   // utan detta fastnar busy=true
     await sleep(+$('delay').value);
   }
@@ -152,7 +154,9 @@ document.querySelectorAll('input[name=eng]').forEach(r => r.onchange = render);
 // --- program, in/out, feedback
 for (let i = 1; i <= 10; i++) $('prog').add(new Option(i, i - 1));
 for (let s = -3; s >= -9; s--) $('fb').add(new Option(s + ' dB', s));
-$('recall').onclick = () => pc(+$('prog').value);
+const readDev = () => { if (!input) return log('Välj en In-port och anslut igen för att kunna läsa'); $('readstat').textContent = 'läser…'; send(DSP.REQ_DUMP); };
+$('read').onclick = readDev;
+$('recall').onclick = () => { pc(+$('prog').value); if (input) readDev(); };   // byt program, läs sedan vad som ligger där
 $('store').onclick = () => {
   if (confirm(`Skriv över program ${+$('prog').value + 1} med enhetens nuvarande inställningar? (Kräver S=1 på enheten.)`)) cc(DSP.CC.store, +$('prog').value);
 };
@@ -161,7 +165,15 @@ $('sendfb').onclick = () => cc(DSP.CC.fb, DSP.enc.fb(+$('fb').value));
 $('clr').onclick = () => $('log').textContent = '';
 
 // --- MIDI in: enhetens egna vridningar uppdaterar pekare och värden
+function onDump(d) {
+  const r = DSP.parseDump(d); if (!r) return log(`IN sysex ${d.length} B (okänt)`);
+  for (const m of [1, 2]) state[m] = r.programs[r.active - 1][m - 1].map(f => ({ ...f }));
+  $('prog').value = r.active - 1; ptr.e = ptr.f = null; render();
+  $('readstat').textContent = `läste program ${r.active} kl. ${new Date().toLocaleTimeString()}`;
+  log(`IN dump: aktivt program ${r.active}`);
+}
 function onMsg(ev) {
+  if (ev.data[0] === 0xF0) return onDump(ev.data);
   const [st, a, b] = ev.data;
   if ((st & 0xF0) === 0xC0) { ptr.e = ptr.f = null; return log(`IN pc ${a}`); }
   if ((st & 0xF0) !== 0xB0) return;
@@ -179,7 +191,7 @@ function onMsg(ev) {
 
 async function init() {
   render();
-  try { midi = await navigator.requestMIDIAccess({ sysex: false }); }
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
   catch (e) { $('status').textContent = 'Web MIDI nekad/ej stött: ' + e.message; return; }
   const fill = () => {
     $('out').innerHTML = ''; [...midi.outputs.values()].forEach(p => $('out').add(new Option(p.name, p.id)));

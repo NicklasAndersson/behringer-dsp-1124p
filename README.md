@@ -41,7 +41,9 @@ Inställningarna sparas i enheten, utom `S`, som nollställs varje gång enheten
    **Spara hit** (`CC 18`, verifierat 2026-11-09 på program 9 och 10), eller på enheten:
    tryck **STORE**, välj program med jog-hjulet och tryck **STORE** igen.
 
-Panelen kan inte läsa av enheten. Den visar det du senast skickat, inte vad som finns i programmet.
+**Läs från enheten** (kräver In-port, frågar efter SysEx-tillstånd) hämtar hela minnet och visar det sparade
+programmet som är valt på enheten. Osparade ändringar (STORE-lampan blinkar) syns inte i läsningen.
+Efter läsningen följer panelen det du skickar och det enheten sänder. Läge SI/AU är inte mätt.
 
 ## Begränsningar
 
@@ -62,8 +64,8 @@ Vägen dit, i ordning:
    (antaget samma avstånd) och en oförklarad bit.
 2. **Få enheten att dumpa från panelen.** *Klart:* SysEx `F0 00 20 32 00 08 4F F7` ger hela minnet
    (`docs/midi.md`). Kräver inte `d` = 2 (provat med `d` = 0).
-3. **Bygga om panelen** så att tabellen fylls från dumpen. Ändringar skickas som CC (som nu), och
-   `CC 18` sparar.
+3. **Bygga om panelen** så att tabellen fylls från dumpen. *Klart (ej provat i webbläsaren):* knappen
+   **Läs från enheten**. Ändringar skickas som CC (som nu), och `CC 18` sparar.
 
 ## Filer
 

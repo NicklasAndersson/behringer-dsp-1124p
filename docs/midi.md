@@ -325,3 +325,11 @@ Ett kort blink på IN/OUT-lampan syns vid varje mottaget SysEx, även när enhet
 **`d` behöver inte vara 2:** efter testet stod `d` på 0 i menyn (den nollställs efter dump), och `4F` gav ändå en full
 dump kl. 09:30:01. Oklart ännu: vad `40`, `44` och `45` betyder. Panelen kan alltså **läsa enheten utan att
 någon trycker STORE**, med `F0 00 20 32 00 08 4F F7`.
+
+### Aktivt program i dumpen (2026-11-09, `dumps/d00`, `d09`)
+
+`PC` 0..9, sedan SysEx-begäran `4F` efter varje, tio dumpar jämförda bit för bit. Det enda som skilde var
+**4 bitar på payloadbit 8068..8071 = aktivt programnummer 1..10** (program 1 → 1, program 10 → 10).
+Alla tio program ligger alltid i dumpen, så en läsning ger hela enhetens minne plus vilket program som är valt.
+Dumpen visar det *sparade* programmet, inte osparat arbetsminne (jfr ovan).
+

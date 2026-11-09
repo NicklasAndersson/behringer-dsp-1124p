@@ -26,6 +26,9 @@ def load(path):  # -> (header[7], dekodad payload)
     assert d[0] == 0xF0 and d[-1] == 0xF7 and max(d[1:-1]) < 128, 'inte ett SysEx-meddelande'
     return d[:7], dec78(d[7:-1])
 
+def active(path):  # aktivt program 1-10: 4 bitar på payloadbit 8068 (mätt 2026-11-09 med PC 0-9 + begäran 4F)
+    d = open(path, 'rb').read(); return int(''.join(f'{b:07b}' for b in d[7:-1])[8068:8072], 2)
+
 def filters(path):  # -> {(program 1-10, motor 0=V/1=H, filter 1-12): (läge PA?, ISO-index, fine, bw, gain dB)}
     # Råa 7-bitsbyte, 32 bitar per filter: frekvens 14 (bit 13 = PA, LSB oanvänd), bw-1 7, gain+48 7, 4 bitar noll.
     # ponytail: program 1-10 antas ligga på samma avstånd (768 bitar), bara 9 och 10 kontrollerade.
@@ -59,5 +62,6 @@ elif __name__ == '__main__':
     for k in range(12):
         assert c[10, 0, k + 1] == (True, 2 * k + 3, k + 2 - 9, 11 + 7 * k, 20 + 3 * k - 48), k
         assert c[10, 1, k + 1] == (True, 29 - 2 * k, 19 - k - 9, 101 - 7 * k, 60 - 3 * k - 48), k
+    assert (active(os.path.join(D, 'd00-aktivt-program-1.syx')), active(os.path.join(D, 'd09-aktivt-program-10.syx'))) == (1, 10)
     assert filters(os.path.join(D, 'b01-L-f1-1k-fine5-bw20-g-6.syx'))[9, 0, 1] == (True, 17, 5, 20, -6)
     print('ok')

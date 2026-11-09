@@ -25,4 +25,19 @@ DSP.peakDb = (flt, f) => {
   const mag = (x0, x1, x2) => Math.hypot(x0 + x1 * c1 + x2 * c2, x1 * s1 + x2 * s2);
   return 20 * Math.log10(mag(1 + al * A, -2 * c, 1 - al * A) / mag(1 + al / A, -2 * c, 1 - al / A));
 };
+// SysEx: begäran om hela minnet (docs/midi.md, 2026-11-09) och avkodning av svaret (samma som filters()/active() i sysex.py).
+DSP.REQ_DUMP = [0xF0, 0x00, 0x20, 0x32, 0x00, 0x08, 0x4F, 0xF7];
+// d = hela SysEx-meddelandet (F0..F7). -> { active: 1..10, programs[0..9][motor 0=V,1=H][filter 0..11] = {mode, freq, fine, bw, gain} } eller null.
+// mode: 1 = PA, 0 = OF (bit 13). SI/AU är inte mätta och visas som OF/PA.
+DSP.parseDump = d => {
+  if (d.length !== 1184 || [0xF0, 0, 0x20, 0x32, 0, 8, 0x0F].some((x, i) => d[i] !== x)) return null;
+  let bits = ''; for (let i = 7; i < d.length - 1; i++) bits += (d[i] & 127).toString(2).padStart(7, '0');
+  const programs = [];
+  for (let p = 0; p < 10; p++) programs.push([0, 1].map(e => Array.from({ length: 12 }, (_, k) => {
+    const s = 3 + 768 * p + 384 * e + 32 * k, u = parseInt(bits.substr(s, 14), 2), u2 = (u & 8191) >> 1, r = u2 % 20;
+    const lo = r > 10 ? 1 : 0;
+    return { mode: u >> 13, freq: Math.floor(u2 / 20) + lo, fine: r - 20 * lo, bw: parseInt(bits.substr(s + 14, 7), 2) + 1, gain: parseInt(bits.substr(s + 21, 7), 2) - 48 };
+  })));
+  return { active: parseInt(bits.substr(8068, 4), 2), programs };
+};
 if (typeof module !== 'undefined') module.exports = DSP;
