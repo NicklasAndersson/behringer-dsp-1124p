@@ -6,7 +6,7 @@ beräknad EQ-kurva. Allt ligger i en enda HTML-fil, utan bygge och utan beroende
 
 **Öppna:** https://nicklasandersson.github.io/behringer-dsp-1124p/
 
-Kräver Chrome eller Edge (Web MIDI) och ett MIDI-interface.
+Kräver Chrome (eller Edge) och ett MIDI-interface. Läsningen från enheten (SysEx) fungerade inte i den andra webbläsaren som provades; Safari saknar Web MIDI.
 
 ## Koppla in
 
