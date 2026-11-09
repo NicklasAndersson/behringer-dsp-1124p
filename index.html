@@ -22,7 +22,7 @@
   @media(max-width:640px){td,th{padding:.2rem}}
 </style>
 <h1>DSP1124P</h1>
-<p>Tryck <b>Läs från enheten</b> (kräver MIDI IN) för att hämta de sparade programmen. Därefter följer panelen det du skickar och vridningar på enheten.
+<p>Tryck <b>Hämta allt från enheten</b> (kräver MIDI IN) för att hämta de sparade programmen. Därefter följer panelen det du skickar och vridningar på enheten.
 Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</code>=1, <code>C</code>=3, <code>P</code>=3.</p>
 
 <fieldset><legend>Anslutning</legend>
@@ -54,7 +54,7 @@ Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</
 
 <fieldset><legend>Visa program (påverkar inte enheten)</legend>
   Visa <select id=view></select> <span id=viewstat></span>
-  <button id=read title="Skickar SysEx-begäran. Webbläsaren frågar om SysEx-tillstånd.">Läs från enheten</button> <span id=readstat></span>
+  <button id=read title="Skickar SysEx-begäran. Webbläsaren frågar om SysEx-tillstånd.">Hämta allt från enheten</button> <span id=readstat></span>
   <br><small>Tabellen visar det valda programmet från senaste läsningen. Redigering går bara när det är samma program som är aktivt på enheten.</small>
 </fieldset>
 
@@ -70,7 +70,7 @@ Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</
 </fieldset>
 
 <fieldset><legend>Alla program (senaste läsningen)</legend>
-  <div id=all><small>Tryck <b>Läs från enheten</b> för att visa alla tio program.</small></div>
+  <div id=all><small>Tryck <b>Hämta allt från enheten</b> för att visa alla tio program.</small></div>
 </fieldset>
 
 <button id=clr>Rensa logg</button>
@@ -277,6 +277,7 @@ $('conn').onclick = () => {
   input = midi.inputs.get($('inp').value);
   if (input) input.onmidimessage = onMsg;
   $('status').textContent = out ? `Ansluten: ${out.name}${input ? ' + in' : ''}` : 'Ingen utport';
+  if (out && input) readDev();                           // GUI i fas direkt vid anslutning
 };
 init();
 </script>
