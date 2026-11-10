@@ -62,6 +62,25 @@ via CC, bara i de program och filter som skiljer sig från enheten, och sparar (
 efter filtren. Frågar enheten fem gånger i sekunden och bara när sändkön är tom.
 Efter läsningen följer panelen det du skickar och det enheten sänder.
 
+## RoomEQ-import (stereo)
+
+Exportera från [pierreaubert/autoeq](https://github.com/pierreaubert/autoeq) med
+`roomeq --export-format rew` (övriga argument enligt din RoomEQ-konfiguration).
+REW-exporten stöder en kanal per fil: gör en export för vänster och en för höger.
+
+1. Välj filerna i **Importera RoomEQ**, Vänster respektive Höger. En ensam fil ändrar endast den sidan.
+2. Granska båda tabellerna: källans Hz/dB/Q och apparatens avrundade Hz/dB/bandbredd.
+3. Ställ in eventuell preampnivå före apparaten och kryssa i bekräftelsen. Olika nivåer kräver separat gain per kanal.
+4. Anslut MIDI, visa aktivt program och tryck **Skicka förhandsvisade filter**. Alla 12 filter på de valda sidorna ersätts; oanvända platser stängs av.
+5. Vänta tills sändningen är klar. Använd **Spara hit** om du vill behålla programmet.
+
+Endast 1–12 peak-filter (PK, ON/OFF) per fil godtas, inom 20–20000 Hz,
+−48 till +16 dB och bandbredd 1–120/60 oktav. Frekvens väljs från panelens
+ISO/fine-tabell, gain avrundas till hela dB och Q omvandlas till bandbredd.
+Andra filtertyper, fördröjning och okända rader stoppas; en felaktig fil blockerar båda sidorna.
+Importen använder den befintliga sändkön, utan Couple, programbyte eller automatisk lagring.
+Format, omvandlingsmodell och kontrollresultat finns i [docs/roomeq.md](docs/roomeq.md).
+
 ## Begränsningar
 
 - **Couple** kopierar hela den aktiva motorn till den andra. Panelen gör samma kopia i sin tabell när du ändrar något i Couple. Vrider du Couple på enheten själv, hämta från enheten efteråt.
@@ -81,6 +100,7 @@ Protokollet och avkodningen av SysEx-dumpen står i `docs/midi.md`.
 | Fil | Innehåll |
 |-----|----------|
 | `index.html` | panelen |
+| `roomeq.js` | läser RoomEQ:s REW-textexport och bygger filterkommandon |
 | `map.js` | CC-nummer, värdeomvandling och EQ-beräkning |
 | `probe.html` | MIDI-sond: skicka råa CC/PC/SysEx och logga det som kommer in |
 | `test.js` | `node test.js` kontrollerar mappningen mot värden uppmätta på enheten |

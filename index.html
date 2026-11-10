@@ -79,6 +79,18 @@ Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</
   (hela programmet, sparas med CC 18, kräver S=1; enheten byter program)
 </fieldset>
 
+<fieldset><legend>Importera RoomEQ</legend>
+  <p>Exportera en kanal med <code>roomeq --export-format rew</code> och välj textfilen här.
+  Välj en fil per sida för stereo och skicka båda tillsammans. Du kan också importera endast en sida. Alla 12 filter på valda sidor ersätts; övriga filterplatser blir OF.</p>
+  <label>Vänster <input id=roomfile1 type=file accept=".txt,text/plain"></label>
+  <label>Höger <input id=roomfile2 type=file accept=".txt,text/plain"></label>
+  <button id=roomclear>Rensa filval</button>
+  <div id=roompreview aria-live=polite></div>
+  <p><label><input id=roomack type=checkbox> Jag har ställt in filens preampnivå före DSP1124P.</label></p>
+  <button id=roomsend disabled>Skicka förhandsvisade filter</button>
+  <small>Skickar till arbetsminnet. Använd Spara hit om du vill spara programmet.</small>
+</fieldset>
+
 <fieldset><legend>Säkerhetskopia</legend>
   <button id=bkp disabled>Spara säkerhetskopia (.syx)</button>
   Återställ från fil <input id=rest type=file accept=".syx" disabled>
@@ -94,6 +106,7 @@ Osparade ändringar markeras av STORE-lampan. Enhetens inställningar: <code>c</
 <div id=log></div>
 
 <script src="map.js"></script>
+<script src="roomeq.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -233,6 +246,56 @@ $('sendfb').onclick = () => {
   if (fbCC) for (const m of e ? [e] : [1, 2]) fbCC[m] = v;
 };
 $('clr').onclick = () => $('log').textContent = '';
+
+// --- RoomEQ: förhandsvisning är helt lokal, MIDI först vid Skicka.
+let roomResults = [], roomLoad = 0;
+async function previewRoom() {
+  const generation = ++roomLoad;
+  roomResults = []; $('roomsend').disabled = true; $('roomack').checked = false;
+  $('roompreview').textContent = '';
+  try {
+    const results = [];
+    for (const engine of [1, 2]) {
+      const file = $('roomfile' + engine).files[0]; if (!file) continue;
+      results.push({ engine, name: file.name, ...RoomEQ.parse(await file.text()) });
+    }
+    if (generation !== roomLoad) return;
+    const box = document.createElement('div');
+    for (const result of results) {
+      const intro = document.createElement('p');
+      intro.textContent = `${result.engine === 1 ? 'Vänster' : 'Höger'}: ${result.name} · Källkanal: ${result.channel || 'ej angiven'} · Preamp: ${result.preamp} dB (ställs in före apparaten). ${12 - result.rows.length} återstående filter blir OF.`;
+      const table = document.createElement('table'), header = table.insertRow();
+      for (const name of ['#', 'Källa: Hz / dB / Q', 'DSP: Hz / dB / BW / läge']) { const th = document.createElement('th'); th.textContent = name; header.append(th); }
+      for (const { source: a, filter: b } of result.rows) {
+        const row = table.insertRow();
+        for (const value of [a.id, `${a.hz} / ${a.gain} / ${a.q}`, `${DSP.centerHz(DSP.ISO[b.freq], b.fine).toFixed(2)} / ${b.gain} / ${b.bw} / ${DSP.MODES[b.mode]}`]) row.insertCell().textContent = value;
+      }
+      box.append(intro, table);
+    }
+    roomResults = results; $('roompreview').replaceChildren(box);
+    $('roomack').disabled = results.every(r => r.preamp === 0);
+    $('roomsend').disabled = !results.length;
+  } catch (err) { if (generation === roomLoad) $('roompreview').textContent = err.message; }
+}
+$('roomfile1').onchange = $('roomfile2').onchange = previewRoom;
+$('roomclear').onclick = () => { $('roomfile1').value = $('roomfile2').value = ''; previewRoom(); };
+$('roomsend').onclick = () => {
+  if (!roomResults.length) return;
+  if (!out) return log('Anslut en MIDI-utport först');
+  if (busy || q.length) return log('Vänta tills sändkön är klar');
+  if (viewP !== activeP) return log('Visa aktivt program innan importen skickas');
+  if (roomResults.some(r => r.preamp !== 0) && !$('roomack').checked) return log('Ställ in och bekräfta preampnivåerna först');
+  const label = roomResults.map(r => r.engine === 1 ? 'Vänster' : 'Höger').join(' och ');
+  if (!confirm(`Ersätt alla 12 filter på ${label} i aktivt program ${activeP + 1}? Sparas inte automatiskt.`)) return;
+  for (const result of roomResults) {
+    runOps(RoomEQ.ops(result, result.engine));
+    state[result.engine] = DSP.defaultProgram()[0];
+    result.rows.forEach((r, i) => state[result.engine][i] = { ...r.filter });
+  }
+  const engine = roomResults[0].engine;
+  document.querySelector(`input[name=eng][value="${engine}"]`).checked = true; lastEng = engine;
+  render(); log(`RoomEQ: filter köade till ${label}, program ${activeP + 1}. Spara hit efter sändningen för att behålla dem.`);
+};
 
 // --- MIDI in: enhetens egna vridningar uppdaterar pekare och värden
 const isDef = f => f.mode === 1 && f.freq === 14 && f.fine === 0 && f.bw === 60 && f.gain === 0;   // standardfilter (docs/midi.md)

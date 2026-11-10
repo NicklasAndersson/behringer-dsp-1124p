@@ -53,4 +53,27 @@ assert.deepStrictEqual(D.meterSegments(924), [true, true, true, false, false, fa
 assert.deepStrictEqual(D.meterSegments(0), Array(8).fill(false));
 assert.deepStrictEqual(D.meterSegments(8191), Array(8).fill(true));
 assert.strictEqual(D.parseMeter(msg(0, 0, 0, 0, 0, 0, 0, 0).slice(0, 10)), null);
+// RoomEQ:s dokumenterade REW-export och två separata motorer.
+global.DSP = D;
+const R = require('./roomeq.js');
+const rew = (channel, gain = -5) => `Filter Settings file
+
+Equaliser: Generic
+Channel: ${channel}
+Preamp: -2.500000000 dB
+Filter  1: ON PK Fc 100.000000000 Hz Gain ${gain} dB Q 2.000000000`;
+const left = R.parse(rew('L')), right = R.parse(rew('R', -3.6));
+assert.strictEqual(left.preamp, -2.5); assert.strictEqual(left.channel, 'L');
+assert.strictEqual(left.rows[0].filter.gain, -5); assert.strictEqual(right.rows[0].filter.gain, -4);
+near(D.centerHz(D.ISO[left.rows[0].filter.freq], left.rows[0].filter.fine), 100, 0.001);
+near(D.q(left.rows[0].filter.bw), 2, 0.03);
+const stereo = [...R.ops(left, 1), ...R.ops(right, 2)];
+assert.deepStrictEqual(stereo.filter(m => m[1] === 12), [['cc', 12, 1], ['cc', 12, 2]]);
+assert.strictEqual(stereo.filter(m => m[1] === 10).length, 24);
+assert(!stereo.some(m => m[0] !== 'cc' || m[1] === 18 || m[2] < 0 || m[2] > 127));
+assert.strictEqual(R.ops(left, 1).filter(m => m[1] === 11 && m[2] === 0).length, 11);
+for (const text of [rew('L').replace('PK', 'LS'), rew('L') + '\nDelay: 1 ms', rew('L') + '\nChannel: R', rew('L').replace('Q 2.', 'Q 0.'), rew('L').replace('100.000000000 Hz', '25000 Hz'), rew('L').replace('Gain -5', 'Gain 17'), '', '{"channels":{}}', rew('L') + '\n' + rew('L').split('\n').at(-1)]) assert.throws(() => R.parse(text));
+assert.throws(() => R.parse(Array.from({length: 13}, (_, i) => `Filter ${i + 1}: ON PK Fc 100 Hz Gain -2 dB Q 2`).join('\n')));
+assert.strictEqual(R.parse('Filter 1: OFF PK Fc 100 Hz Gain 0 dB Q 2').rows[0].filter.mode, 0);
+assert.throws(() => R.ops(left, 0));
 console.log('ok');
