@@ -296,7 +296,7 @@ sparades med `CC 18 = 9` och dumpades med STORE-knappen (`d` = 2). Sedan söktes
 
 Varje filter är 32 bitar: frekvens 14 (bit 13 = läge PA, sista biten oanvänd), bandbredd−1 7, gain+48 7, 4 bitar noll.
 Frekvensfältet är `40·ISO-index + 2·fine` (fine −9..+10). 24 av 24 filter stämmer mot det som skickades.
-Kontrolleras av `python3 -I sysex.py` (`filters()`).
+Kontrolleras av `node test.js` (`DSP.parseDump`).
 
 - Stämmer med det gamla fyndet: program 9, vänster, filter 1 ligger på råbyte 878 bit 1 (`b01`).
 - Ett program är 768 bitar (24 × 32). Program 9 och 10 är verifierade, 1–8 antas ligga på samma avstånd.

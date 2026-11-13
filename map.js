@@ -25,7 +25,7 @@ DSP.peakDb = (flt, f) => {
   const mag = (x0, x1, x2) => Math.hypot(x0 + x1 * c1 + x2 * c2, x1 * s1 + x2 * s2);
   return 20 * Math.log10(mag(1 + al * A, -2 * c, 1 - al * A) / mag(1 + al / A, -2 * c, 1 - al / A));
 };
-// SysEx: begäran om hela minnet (docs/midi.md, 2026-11-09) och avkodning av svaret (samma som filters()/active() i sysex.py).
+// SysEx: begäran om hela minnet (docs/midi.md, 2026-11-09) och avkodning av svaret.
 DSP.REQ_DUMP = [0xF0, 0x00, 0x20, 0x32, 0x00, 0x08, 0x4F, 0xF7];
 // d = hela SysEx-meddelandet (F0..F7). -> { active: 1..10, programs[0..9][motor 0=V,1=H][filter 0..11] = {mode, freq, fine, bw, gain} } eller null.
 // mode: 0 = OF, 1 = PA, 2 = AU, 3 = SI (bit s-1 och översta frekvensbiten, samma tal som CC 11; AU/SI-etiketterna ur manualen, ej kontrollerade mot displayen).

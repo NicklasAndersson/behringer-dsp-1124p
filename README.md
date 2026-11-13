@@ -102,7 +102,6 @@ Protokollet och avkodningen av SysEx-dumpen står i `docs/midi.md`.
 | `index.html` | panelen |
 | `roomeq.js` | läser RoomEQ:s REW-textexport och bygger filterkommandon |
 | `map.js` | CC-nummer, värdeomvandling och EQ-beräkning |
-| `probe.html` | MIDI-sond: skicka råa CC/PC/SysEx och logga det som kommer in |
 | `test.js` | `node test.js` kontrollerar mappningen mot värden uppmätta på enheten |
 | `docs/midi.md` | protokollet: manualens tabell, vad som är verifierat, SysEx-avkodning |
 | `docs/dumps/` | fångade SysEx-dumpar (`.syx`) som avkodningen bygger på |
